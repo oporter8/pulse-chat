@@ -76,7 +76,7 @@ export default function ResetPasswordPage() {
           <div className="brand-mark">P</div>
           <div>
             <h1>New password</h1>
-            <p>Choose a new password for your Pulse account.</p>
+            <p>Choose a new password for your Tiger Chat account.</p>
           </div>
         </div>
 
