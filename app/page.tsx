@@ -100,8 +100,9 @@ export default function AuthPage() {
     <main className="auth-shell">
       <section className="auth-card">
         <div className="brand-lockup">
-          <div className="brand-mark">P</div>
-          <div>
+          <div className="brand-mark">
+  <img src="/icons/pulse-192.png" alt="Tiger Chat" />
+</div>
             <h1>Tiger Chat</h1>
             <p>Realtime messaging, built from scratch.</p>
           </div>
