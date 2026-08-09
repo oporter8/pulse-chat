@@ -4,6 +4,7 @@ import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import type { DmPrivacy, MyProfile, Profile, Report, Theme } from "@/lib/chat-types";
 import type { DevicePushState } from "@/lib/push-client";
 import { Avatar } from "@/components/chat/Avatar";
+import { AdminPanel } from "@/components/chat/AdminPanel";
 import { formatDateTime } from "@/lib/chat-utils";
 
 type PreferenceValues = {
@@ -36,6 +37,7 @@ type SettingsModalProps = {
   onDisableDevicePush: () => Promise<void>;
   onUnblock: (userId: string) => Promise<void>;
   onUpdateReport: (reportId: string, status: "resolved" | "dismissed") => Promise<void>;
+  onAdminTagChanged: (tag: string) => void;
   onSignOut: () => Promise<void>;
 };
 
@@ -56,6 +58,7 @@ export function SettingsModal({
   onDisableDevicePush,
   onUnblock,
   onUpdateReport,
+  onAdminTagChanged,
   onSignOut,
 }: SettingsModalProps) {
   const [username, setUsername] = useState(profile.username);
@@ -374,6 +377,7 @@ export function SettingsModal({
 
             {tab === "moderation" && isAdmin && (
               <div className="settings-section-v5">
+                <AdminPanel currentUserId={profile.id} currentTag={profile.admin_tag} onTagChanged={onAdminTagChanged} />
                 <h3>Open reports</h3>
                 <p className="muted-copy">Only accounts listed in <code>app_admins</code> can access this panel.</p>
                 {reports.filter((report) => report.status === "open").length === 0 ? (

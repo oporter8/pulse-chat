@@ -12,6 +12,7 @@ type MessageItemProps = {
   replyMessage?: Message;
   members: ConversationMember[];
   highlighted?: boolean;
+  isAdmin?: boolean;
   onReply: (message: Message) => void;
   onEdit: (message: Message) => void;
   onDelete: (message: Message) => void;
@@ -25,6 +26,7 @@ export function MessageItem({
   replyMessage,
   members,
   highlighted = false,
+  isAdmin = false,
   onReply,
   onEdit,
   onDelete,
@@ -55,6 +57,7 @@ export function MessageItem({
       <div className="message-content-v5">
         <div className="message-meta-v5">
           <strong>{mine ? "You" : senderName}</strong>
+          {message.sender?.admin_tag && <span className="admin-badge-v7">{message.sender.admin_tag}</span>}
           <time>{formatTime(message.created_at)}</time>
           {message.edited_at && !message.deleted_at && <span>edited</span>}
         </div>
@@ -97,7 +100,7 @@ export function MessageItem({
           <div className="message-tools">
             <button type="button" onClick={() => onReply(message)}>Reply</button>
             {mine && <button type="button" onClick={() => onEdit(message)}>Edit</button>}
-            {mine && <button type="button" onClick={() => onDelete(message)}>Delete</button>}
+            {(mine || isAdmin) && <button type="button" onClick={() => onDelete(message)}>{mine ? "Delete" : "Admin delete"}</button>}
             {!mine && <button type="button" onClick={() => onReport(message)}>Report</button>}
             <span className="reaction-picker" aria-label="Quick reactions">
               {QUICK_REACTIONS.map((emoji) => (

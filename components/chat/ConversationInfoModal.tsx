@@ -69,7 +69,7 @@ export function ConversationInfoModal({
     const timer = window.setTimeout(async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("id, username, display_name, bio, avatar_path, created_at")
+        .select("id, username, display_name, bio, avatar_path, admin_tag, created_at")
         .or(`username.ilike.%${clean}%,display_name.ilike.%${clean}%`)
         .limit(10);
       const memberIds = new Set(members.map((member) => member.user_id));
@@ -182,7 +182,7 @@ export function ConversationInfoModal({
                   <div className="member-row" key={member.user_id}>
                     <Avatar name={member.profile.display_name || member.profile.username} path={member.profile.avatar_path} size="small" />
                     <span className="grow-copy">
-                      <strong>{member.profile.display_name}</strong>
+                      <span className="admin-name-line-v7"><strong>{member.profile.display_name}</strong>{member.profile.admin_tag && <span className="admin-badge-v7">{member.profile.admin_tag}</span>}</span>
                       <small>@{member.profile.username} · {member.role}</small>
                     </span>
                     {canManage && member.user_id !== currentUserId && member.role !== "owner" && (
@@ -204,7 +204,7 @@ export function ConversationInfoModal({
                           setResults([]);
                         }}>
                           <Avatar name={profile.display_name || profile.username} path={profile.avatar_path} size="small" />
-                          <span><strong>{profile.display_name}</strong><small>@{profile.username}</small></span>
+                          <span><span className="admin-name-line-v7"><strong>{profile.display_name}</strong>{profile.admin_tag && <span className="admin-badge-v7">{profile.admin_tag}</span>}</span><small>@{profile.username}</small></span>
                         </button>
                       ))}
                     </div>

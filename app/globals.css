@@ -538,3 +538,38 @@ button:disabled { opacity: 0.55; cursor: not-allowed; }
   .conversation-notification-row button { width: 100%; }
   .search-result-topline time { display: none; }
 }
+
+
+/* Pulse v7 owner/admin */
+.admin-badge-v7 {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 20px;
+  padding: 2px 7px;
+  margin-left: 6px;
+  border: 1px solid color-mix(in srgb, var(--accent) 60%, var(--border));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent-2);
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 850;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+.admin-name-line-v7 { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.admin-panel-v7 { display: grid; gap: 18px; margin-bottom: 24px; }
+.admin-card-v7 { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 16px; background: var(--panel-2); }
+.admin-card-v7 h3 { margin: 0 0 4px; }
+.admin-tag-editor-v7, .admin-search-v7 { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; }
+.admin-tag-editor-v7 input, .admin-search-v7 input { flex: 1 1 220px; min-width: 0; }
+.admin-user-list-v7 { display: grid; gap: 8px; }
+.admin-user-row-v7 { display: flex; align-items: center; gap: 10px; padding: 11px; border: 1px solid var(--border); border-radius: 13px; background: var(--panel); }
+.admin-user-row-v7 small { display: block; color: var(--muted); overflow-wrap: anywhere; }
+.admin-actions-v7 { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 640px) {
+  .admin-user-row-v7 { align-items: flex-start; flex-wrap: wrap; }
+  .admin-actions-v7 { width: 100%; margin-left: 42px; justify-content: flex-start; }
+}

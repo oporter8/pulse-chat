@@ -45,7 +45,7 @@ export function NewGroupModal({
     const timer = window.setTimeout(async () => {
       const { data } = await supabase
         .from("profiles")
-        .select("id, username, display_name, bio, avatar_path, created_at")
+        .select("id, username, display_name, bio, avatar_path, admin_tag, created_at")
         .or(`username.ilike.%${clean}%,display_name.ilike.%${clean}%`)
         .neq("id", currentUserId)
         .limit(10);

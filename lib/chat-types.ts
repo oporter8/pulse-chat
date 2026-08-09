@@ -7,6 +7,7 @@ export type Profile = {
   display_name: string;
   bio: string;
   avatar_path: string | null;
+  admin_tag: string | null;
   created_at: string;
 };
 
@@ -95,4 +96,17 @@ export type Report = {
   created_at: string;
   reviewed_at: string | null;
   reviewed_by: string | null;
+};
+
+export type AdminUser = {
+  id: string;
+  email: string;
+  username: string;
+  display_name: string;
+  avatar_path: string | null;
+  admin_tag: string | null;
+  created_at: string;
+  last_sign_in_at: string | null;
+  banned_until: string | null;
+  is_admin: boolean;
 };

@@ -54,3 +54,7 @@ git push origin main
 - Online-status privacy
 - Push replay protection and stale-subscription cleanup
 - All previous v5 messaging/group/moderation/PWA/device-responsive features
+
+
+## V7 OWNER/ADMIN
+After v6, run `supabase/v7_migration.sql`. See `V7_SETUP.md`.

@@ -148,7 +148,7 @@ export default function ChatPage() {
 
     const { data: profiles, error: profileError } = await supabase
       .from("profiles")
-      .select("id, username, display_name, bio, avatar_path, created_at")
+      .select("id, username, display_name, bio, avatar_path, admin_tag, created_at")
       .in("id", ids);
     if (profileError) throw profileError;
     setBlockedProfiles((profiles ?? []) as Profile[]);
@@ -193,6 +193,7 @@ export default function ChatPage() {
         display_name: String(row.display_name),
         bio: String(row.bio ?? ""),
         avatar_path: typeof row.avatar_path === "string" ? row.avatar_path : null,
+        admin_tag: typeof row.admin_tag === "string" ? row.admin_tag : null,
         created_at: String(row.profile_created_at),
       },
     }));
@@ -208,7 +209,7 @@ export default function ChatPage() {
     const [profileResult, attachmentResult, reactionResult] = await Promise.all([
       supabase
         .from("profiles")
-        .select("id, username, display_name, bio, avatar_path, created_at")
+        .select("id, username, display_name, bio, avatar_path, admin_tag, created_at")
         .in("id", senderIds),
       supabase
         .from("message_attachments")
@@ -390,7 +391,7 @@ export default function ChatPage() {
 
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
-          .select("id, username, display_name, bio, avatar_path, created_at, dm_privacy, show_read_receipts, show_online_status, notifications_enabled, notification_preview")
+          .select("id, username, display_name, bio, avatar_path, admin_tag, created_at, dm_privacy, show_read_receipts, show_online_status, notifications_enabled, notification_preview")
           .eq("id", currentUser.id)
           .single();
         if (profileError) throw profileError;
@@ -626,7 +627,7 @@ export default function ChatPage() {
       setSearching(true);
       const { data, error: searchError } = await supabase
         .from("profiles")
-        .select("id, username, display_name, bio, avatar_path, created_at")
+        .select("id, username, display_name, bio, avatar_path, admin_tag, created_at")
         .or(`username.ilike.%${clean}%,display_name.ilike.%${clean}%`)
         .neq("id", currentUser.id)
         .limit(10);
@@ -815,20 +816,29 @@ export default function ChatPage() {
   }
 
   async function deleteMessage(message: Message) {
-    if (message.sender_id !== user?.id || message.deleted_at) return;
-    if (!window.confirm("Delete this message?")) return;
+    if (!user || message.deleted_at) return;
+    const mine = message.sender_id === user.id;
+    if (!mine && !isAdmin) return;
+    if (!window.confirm(mine ? "Delete this message?" : "Remove this message as an admin?")) return;
 
-    const paths = message.attachments.map((attachment) => attachment.storage_path);
-    if (paths.length > 0) {
-      await supabase.storage.from("attachments").remove(paths);
-      await supabase.from("message_attachments").delete().eq("message_id", message.id);
+    // Owners can remove their own uploaded files. Admin deletion of someone else's
+    // message soft-deletes the message only, so private storage ownership stays intact.
+    if (mine) {
+      const paths = message.attachments.map((attachment) => attachment.storage_path);
+      if (paths.length > 0) {
+        await supabase.storage.from("attachments").remove(paths);
+        await supabase.from("message_attachments").delete().eq("message_id", message.id);
+      }
     }
 
-    const { error: deleteError } = await supabase
+    let query = supabase
       .from("messages")
       .update({ body: "", deleted_at: new Date().toISOString(), edited_at: null })
-      .eq("id", message.id)
-      .eq("sender_id", user.id);
+      .eq("id", message.id);
+
+    if (mine) query = query.eq("sender_id", user.id);
+
+    const { error: deleteError } = await query;
     if (deleteError) setError(deleteError.message);
     else if (activeConversationId) await loadMessages(activeConversationId);
   }
@@ -911,7 +921,7 @@ export default function ChatPage() {
         avatar_path: avatarPath,
       })
       .eq("id", user.id)
-      .select("id, username, display_name, bio, avatar_path, created_at, dm_privacy, show_read_receipts, show_online_status, notifications_enabled, notification_preview")
+      .select("id, username, display_name, bio, avatar_path, admin_tag, created_at, dm_privacy, show_read_receipts, show_online_status, notifications_enabled, notification_preview")
       .single();
     if (profileError) throw profileError;
 
@@ -947,7 +957,7 @@ export default function ChatPage() {
         notification_preview: values.notificationPreview,
       })
       .eq("id", user.id)
-      .select("id, username, display_name, bio, avatar_path, created_at, dm_privacy, show_read_receipts, show_online_status, notifications_enabled, notification_preview")
+      .select("id, username, display_name, bio, avatar_path, admin_tag, created_at, dm_privacy, show_read_receipts, show_online_status, notifications_enabled, notification_preview")
       .single();
 
     if (preferenceError) throw preferenceError;
@@ -1314,6 +1324,7 @@ export default function ChatPage() {
         onDisableDevicePush={disableCurrentDevicePush}
         onUnblock={unblockUser}
         onUpdateReport={updateReport}
+        onAdminTagChanged={(tag) => setMe((current) => current ? { ...current, admin_tag: tag } : current)}
         onSignOut={signOut}
       />
 
