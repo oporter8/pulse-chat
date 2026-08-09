@@ -98,7 +98,27 @@ export async function POST(request: Request) {
 
     const { error } = await auth.admin.auth.admin.updateUserById(userId, { ban_duration: banDuration });
     if (error) throw error;
-    return Response.json({ ok: true });
+
+    // Supabase bans stop new/refreshing sessions, but an already-issued access
+    // token can remain valid until its JWT expires. Pulse also revokes every
+    // app-level device session for a newly suspended account so the client-side
+    // heartbeat forces currently-open Pulse sessions out quickly.
+    if (banDuration !== "none") {
+      const { error: deviceError } = await auth.admin
+        .from("device_sessions")
+        .update({ revoked_at: new Date().toISOString() })
+        .eq("user_id", userId)
+        .is("revoked_at", null);
+      if (deviceError) {
+        console.error("Pulse device revocation failed after auth ban:", deviceError);
+        return Response.json(
+          { error: "The account was banned, but its active Pulse devices could not be revoked. Check the v8 migration and try again." },
+          { status: 500 },
+        );
+      }
+    }
+
+    return Response.json({ ok: true, suspended: banDuration !== "none" });
   } catch (error) {
     console.error("Pulse admin action failed:", error);
     return Response.json({ error: error instanceof Error ? error.message : "Admin action failed." }, { status: 500 });

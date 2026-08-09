@@ -726,7 +726,7 @@ export default function ChatPage() {
       }
     };
     void check();
-    const timer = window.setInterval(() => void check(), 60_000);
+    const timer = window.setInterval(() => void check(), 10_000);
     const onVisible = () => { if (document.visibilityState === "visible") void check(); };
     document.addEventListener("visibilitychange", onVisible);
     return () => { stopped = true; window.clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); };
