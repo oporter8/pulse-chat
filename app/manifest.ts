@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Pulse Chat",
-    short_name: "Pulse",
+    name: "Tiger Chat",
+    short_name: "Tiger Chat",
     description: "Realtime private messaging with DMs, groups, reactions, attachments, and profiles.",
     start_url: "/",
     display: "standalone",
