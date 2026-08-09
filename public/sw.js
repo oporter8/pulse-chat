@@ -53,7 +53,7 @@ self.addEventListener("fetch", (event) => {
 
 self.addEventListener("push", (event) => {
   let payload = {
-    title: "Pulse Chat",
+    title: "Tiger Chat",
     body: "New message",
     url: "/chat",
     tag: "pulse-message",
