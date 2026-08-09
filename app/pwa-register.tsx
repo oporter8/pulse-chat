@@ -10,7 +10,7 @@ export function PwaRegister() {
       try {
         await navigator.serviceWorker.register("/sw.js", { scope: "/" });
       } catch (error) {
-        console.error("Pulse service worker registration failed:", error);
+        console.error("TigerChat service worker registration failed:", error);
       }
     };
 
