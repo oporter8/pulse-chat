@@ -11,6 +11,7 @@ export default function AuthPage() {
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -29,6 +30,7 @@ export default function AuthPage() {
     try {
       if (mode === "signup") {
         const cleanUsername = username.trim().toLowerCase();
+        const cleanDisplayName = displayName.trim() || cleanUsername;
 
         if (!/^[a-z0-9_]{3,20}$/.test(cleanUsername)) {
           setMessage("Username must be 3–20 characters: letters, numbers, or underscores.");
@@ -39,7 +41,7 @@ export default function AuthPage() {
           email: email.trim(),
           password,
           options: {
-            data: { username: cleanUsername }
+            data: { username: cleanUsername, display_name: cleanDisplayName }
           }
         });
 
@@ -102,17 +104,29 @@ export default function AuthPage() {
 
         <form className="auth-form" onSubmit={submit}>
           {mode === "signup" && (
-            <label>
-              Username
-              <input
-                value={username}
-                onChange={(event) => setUsername(event.target.value)}
-                placeholder="owen_porter"
-                autoComplete="username"
-                maxLength={20}
-                required
-              />
-            </label>
+            <>
+              <label>
+                Display name
+                <input
+                  value={displayName}
+                  onChange={(event) => setDisplayName(event.target.value)}
+                  placeholder="Owen Porter"
+                  autoComplete="name"
+                  maxLength={40}
+                />
+              </label>
+              <label>
+                Username
+                <input
+                  value={username}
+                  onChange={(event) => setUsername(event.target.value)}
+                  placeholder="owen_porter"
+                  autoComplete="username"
+                  maxLength={20}
+                  required
+                />
+              </label>
+            </>
           )}
 
           <label>

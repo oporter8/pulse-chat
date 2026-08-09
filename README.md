@@ -1,173 +1,56 @@
 # Pulse Chat
 
-A realtime direct-messaging app built with Next.js, TypeScript, React, and Supabase.
+Pulse Chat is a responsive realtime messaging app built with Next.js, React, TypeScript, and Supabase.
 
-## What works
+## v5 features
 
-- Email/password signup and login
-- Unique usernames
-- Search for users
-- Start or reopen 1-to-1 DMs
-- Realtime incoming messages with Supabase Realtime
-- Conversation list with latest-message previews
-- Row Level Security so only conversation members can read messages
-- Responsive desktop/mobile UI
+Pulse supports direct messages, group chats, profiles/avatars/bios, online presence, typing indicators, replies, edit/delete, reactions, read receipts, private file/image attachments, blocking, reporting, moderator review, themes, pagination, and installable PWA behavior.
 
-## 1. Install Node.js
+The UI is designed for phones, tablets, laptops, and desktop monitors. On narrow screens Pulse switches to a single-pane conversation flow with a native-style back button instead of shrinking the desktop sidebar.
 
-Use Node.js 22 or newer.
+## Stack
 
-Check:
+- Next.js 16
+- React 19
+- TypeScript
+- Supabase Auth
+- Supabase Postgres + RLS
+- Supabase Realtime
+- Supabase Storage
+- Vercel
 
-```bash
-node -v
-npm -v
-```
+## Local development
 
-## 2. Create a Supabase project
-
-Create a project in the Supabase dashboard.
-
-Then open:
-
-**SQL Editor -> New query**
-
-Paste the entire contents of:
+Create `.env.local` beside `package.json`:
 
 ```text
-supabase/schema.sql
+NEXT_PUBLIC_SUPABASE_URL=your-project-url
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your-publishable-key
 ```
 
-and run it.
-
-## 3. Add environment variables
-
-Copy:
-
-```text
-.env.example
-```
-
-to:
-
-```text
-.env.local
-```
-
-Fill in:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
-```
-
-Find these values in your Supabase project's API settings.
-
-Do NOT commit `.env.local` to GitHub.
-
-## 4. Install and run
+Then:
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open:
+## Existing project upgrade
 
-```text
-http://localhost:3000
-```
+Read `V5_SETUP.md` and run `supabase/v5_migration.sql` before using the v5 UI.
 
-## 5. Test realtime chat
+## Production
 
-1. Create two different accounts.
-2. Use two browsers or one normal window + one private window.
-3. Sign into a different account in each.
-4. Search for the other username.
-5. Start a DM.
-6. Send messages between the windows.
+Vercel should have the two `NEXT_PUBLIC_SUPABASE_*` variables configured. Supabase Auth's Site URL should point at the production Vercel domain and that domain should be included in Redirect URLs.
 
-Messages should appear without refreshing.
+## Security model
 
-## 6. Upload to GitHub
+- Persistent conversations/messages are protected by table RLS.
+- Private attachments are protected by Storage RLS and served through signed URLs.
+- Users can only update their own profile and reactions.
+- Group membership management is performed through security-definer RPCs and requires group owner/admin privileges.
+- DMs stop accepting new messages when either side blocks the other.
+- Reports are visible to the reporter and accounts in `app_admins`.
+- A database trigger enforces basic anti-spam message rate limits.
 
-Unzip this project, open the project folder in VS Code, then:
-
-```bash
-git init
-git add .
-git commit -m "Initial realtime chat app"
-git branch -M main
-git remote add origin YOUR_GITHUB_REPO_URL
-git push -u origin main
-```
-
-You can also create a GitHub repository and upload the unzipped files through GitHub's web interface.
-
-## 7. Deploy
-
-A common setup is:
-
-**GitHub -> Vercel -> Supabase**
-
-When deploying, add the same two environment variables to your hosting provider.
-
-## Important security note
-
-The browser receives only the Supabase public/publishable key. Database access is protected by the Row Level Security policies in `supabase/schema.sql`.
-
-Never place a Supabase `service_role` or secret key in a `NEXT_PUBLIC_*` variable or commit it to GitHub.
-
-## Next features to build
-
-- Group chats
-- Typing indicators
-- Presence/online status
-- Read receipts
-- Image/file uploads
-- Message editing/deleting UI
-- Emoji reactions
-- Profile pictures
-## Realtime presence + typing update
-
-This version adds:
-
-- Online/offline indicators using Supabase Presence
-- Typing indicators using Supabase Broadcast
-- Private Realtime channels protected by RLS
-
-After your original `schema.sql` has already been run, open:
-
-```text
-supabase/realtime.sql
-```
-
-Copy the entire file into **Supabase -> SQL Editor -> New query** and run it.
-
-Then restart the local app:
-
-```bash
-npm run dev
-```
-
-Test with two accounts in two browser windows.
-
-### Important
-
-"Online" means the user currently has Pulse Chat open and connected. It is not a permanent last-seen system.
-
-
-## Settings
-
-The chat sidebar now includes a Settings menu with:
-
-- Username changes
-- System, dark, and light themes
-- Account email display
-- Sign out
-
-Username changes use the existing `profiles` update RLS policy from `schema.sql`.
-
-## Public deployment
-
-See `DEPLOY.md` for the exact GitHub + Vercel deployment steps. No school-email restriction is built into Pulse Chat.
+Never expose a Supabase service-role/secret key in browser code or a `NEXT_PUBLIC_*` variable.

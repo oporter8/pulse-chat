@@ -1,78 +1,36 @@
-# Deploy Pulse Chat publicly with Vercel
+# Deploy Pulse Chat v5
 
-This turns the local Next.js app into a public HTTPS website while continuing to use the same Supabase project.
+## Existing Pulse project
 
-## Before deploying
+1. Apply the v5 project files.
+2. Run `supabase/v5_migration.sql` in Supabase SQL Editor.
+3. Run `supabase/realtime.sql` in Supabase SQL Editor.
+4. Keep your existing `.env.local`.
+5. Run `npm install` and `npm run build` locally.
+6. Push to `main`; Vercel will redeploy automatically.
 
-Make sure your local project contains `.env.local` with:
+## New Supabase project
 
-```env
-NEXT_PUBLIC_SUPABASE_URL=YOUR_SUPABASE_PROJECT_URL
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=YOUR_SUPABASE_PUBLISHABLE_KEY
-```
+Run `supabase/fresh_install.sql`, then `supabase/realtime.sql`.
 
-Do not commit `.env.local`. It is already ignored by `.gitignore`.
+## Vercel variables
 
-## Option A: GitHub + Vercel dashboard
-
-1. Push the project to a GitHub repository.
-2. Sign in to Vercel and choose **Add New -> Project**.
-3. Import the GitHub repository.
-4. Vercel should detect **Next.js** automatically.
-5. In the project's Environment Variables, add:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-6. Deploy.
-7. Vercel will give you a public URL similar to:
+Configure these in Production, Preview, and Development:
 
 ```text
-https://pulse-chat-yourname.vercel.app
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 ```
 
-## Option B: Vercel CLI
+Never add a secret/service-role key to a `NEXT_PUBLIC_*` variable.
 
-From the project folder:
+## Supabase Auth URL configuration
 
-```bash
-npm install -g vercel
-vercel login
-vercel
-```
-
-Follow the prompts. Add the two Supabase environment variables in the Vercel project settings, then redeploy:
-
-```bash
-vercel --prod
-```
-
-## Supabase Auth production URL
-
-After Vercel gives you the final production URL:
-
-1. Open your Supabase project.
-2. Go to **Authentication -> URL Configuration**.
-3. Set **Site URL** to your production URL.
-4. Add these Redirect URLs:
+Set the Site URL to your production Vercel URL and add both production and local development redirect patterns, for example:
 
 ```text
+https://your-project.vercel.app/**
 http://localhost:3000/**
-https://YOUR-VERCEL-DOMAIN.vercel.app/**
 ```
 
-Keep localhost while you are still developing locally.
-
-## Signup access
-
-Pulse does not restrict accounts to a school email domain. Anyone who can reach the public site may create an account using the email/password signup form, subject to your Supabase Auth settings.
-
-## Before sharing widely
-
-For a small MVP, the current setup is fine. Before promoting it to hundreds of users, add:
-
-- Block and report controls
-- Rate limits / anti-spam controls
-- Moderation tools
-- Paginated message history
-- Abuse monitoring
-- Tighter Realtime topic authorization
-- Privacy policy and basic community rules
+See `V5_SETUP.md` for the complete test checklist.

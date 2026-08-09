@@ -1,7 +1,6 @@
--- Pulse Chat Realtime authorization (MVP)
--- Run in Supabase Dashboard -> SQL Editor.
--- Any authenticated Pulse account may connect to private Realtime topics.
--- Permanent message data remains protected by the RLS policies in schema.sql.
+-- Pulse Chat Realtime authorization.
+-- Run in Supabase SQL Editor if Presence/typing reports Unauthorized.
+-- Persistent messages/files remain protected by their own table/storage RLS policies.
 
 drop policy if exists "pulse presence receive" on realtime.messages;
 drop policy if exists "pulse presence send" on realtime.messages;
