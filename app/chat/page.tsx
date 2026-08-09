@@ -195,6 +195,9 @@ export default function ChatPage() {
   useEffect(() => {
     if (!user || !me) return;
 
+    const currentUser = user;
+    const currentMe = me;
+
     let cancelled = false;
     let channel: RealtimeChannel | null = null;
     presenceChannelReadyRef.current = false;
@@ -218,7 +221,7 @@ export default function ChatPage() {
         config: {
           private: true,
           presence: {
-            key: user.id,
+            key: currentUser.id,
           },
         },
       });
@@ -245,8 +248,8 @@ export default function ChatPage() {
           if (status === "SUBSCRIBED") {
             presenceChannelReadyRef.current = true;
             await channel.track({
-              user_id: user.id,
-              username: me.username,
+              user_id: currentUser.id,
+              username: currentMe.username,
               online_at: new Date().toISOString(),
             });
           }
@@ -297,6 +300,8 @@ export default function ChatPage() {
       setMessages([]);
       return;
     }
+
+    const currentUser = user;
 
     let cancelled = false;
     let channel: RealtimeChannel | null = null;
@@ -367,7 +372,7 @@ export default function ChatPage() {
           },
         )
         .on("broadcast", { event: "typing" }, ({ payload }) => {
-          if (payload.user_id === user.id) return;
+          if (payload.user_id === currentUser.id) return;
           setOtherUserTyping(Boolean(payload.is_typing));
         })
         .subscribe((status, channelError) => {
