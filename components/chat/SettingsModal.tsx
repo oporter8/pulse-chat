@@ -255,17 +255,9 @@ export function SettingsModal({
           <div className="settings-content">
             {tab === "profile" && (
               <form className="stack-form" onSubmit={submitProfile}>
-                <div className="profile-editor-header">
-                  {avatarPreview ? (
-                    <span className="avatar-wrap avatar-large"><span className="avatar"><img src={avatarPreview} alt="New profile preview" /></span></span>
-                  ) : (
-                    <Avatar name={profile.display_name || profile.username} path={profile.avatar_path} size="large" />
-                  )}
-                  <label className="file-button">
-                    Change photo
-                    <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={chooseAvatar} />
-                  </label>
-                  {avatarFile && <label className="crop-control-v8">Crop zoom<input type="range" min="1" max="2.5" step="0.05" value={cropZoom} onChange={(event) => setCropZoom(Number(event.target.value))} /></label>}
+                <div className="tiger-no-image-profile-note">
+                  <strong>🐯 Text-only profile</strong>
+                  <span>Tiger Chat v11 uses text-only profiles. Profile photos and image banners are disabled.</span>
                 </div>
 
                 <div className="two-column-fields">

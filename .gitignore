@@ -6,3 +6,5 @@ out
 .env.*.local
 .DS_Store
 npm-debug.log*
+.pulse-v*-backup-*/
+.pulse-v*-backup-*

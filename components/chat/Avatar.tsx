@@ -1,4 +1,4 @@
-import { avatarUrl, initials } from "@/lib/chat-utils";
+import { initials } from "@/lib/chat-utils";
 
 type AvatarProps = {
   name: string;
@@ -7,14 +7,10 @@ type AvatarProps = {
   online?: boolean;
 };
 
-export function Avatar({ name, path, size = "medium", online = false }: AvatarProps) {
-  const url = avatarUrl(path);
-
+export function Avatar({ name, size = "medium", online = false }: AvatarProps) {
   return (
-    <span className={`avatar-wrap avatar-${size}`} aria-label={name}>
-      <span className="avatar">
-        {url ? <img src={url} alt="" /> : initials(name)}
-      </span>
+    <span className={`avatar-wrap avatar-${size} tiger-initial-avatar`} aria-label={name} title="Tiger Chat uses text-only profiles">
+      <span className="avatar" aria-hidden="true">{initials(name)}</span>
       {online && <span className="online-dot" aria-label="Online" />}
     </span>
   );

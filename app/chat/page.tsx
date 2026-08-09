@@ -49,6 +49,7 @@ import { formatLastSeen, formatTime, safeFileName } from "@/lib/chat-utils";
 import { disableDevicePush, enableDevicePush, getDevicePushState, type DevicePushState } from "@/lib/push-client";
 import { forgetDeviceKey, getDeviceKey, getDeviceName } from "@/lib/device";
 import { haptic, playNotificationSound } from "@/lib/sounds";
+import { VoiceRecorder } from "@/components/v11/VoiceRecorder";
 
 const PAGE_SIZE = 50;
 const MAX_ATTACHMENT_BYTES = 6 * 1024 * 1024;
@@ -141,6 +142,31 @@ export default function ChatPage() {
     () => conversations.find((conversation) => conversation.conversation_id === activeConversationId) ?? null,
     [activeConversationId, conversations],
   );
+
+  // v11 per-conversation appearance. Stored in Supabase; no paid API required.
+  useEffect(() => {
+    let cancelled = false;
+    async function applyConversationTheme() {
+      const root = document.documentElement;
+      if (!user?.id || !activeConversationId) {
+        delete root.dataset.tigerConversationTheme;
+        delete root.dataset.tigerConversationBubble;
+        return;
+      }
+      const { data } = await supabase
+        .from("conversation_preferences")
+        .select("theme,bubble_style,density,font_scale")
+        .eq("user_id", user.id)
+        .eq("conversation_id", activeConversationId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (data?.theme && data.theme !== "default") root.dataset.tigerConversationTheme = data.theme;
+      else delete root.dataset.tigerConversationTheme;
+      if (data?.bubble_style && data.bubble_style !== "inherit") root.dataset.tigerBubble = data.bubble_style;
+    }
+    void applyConversationTheme();
+    return () => { cancelled = true; };
+  }, [activeConversationId, user?.id]);
 
   const visibleConversations = useMemo(() =>
     conversations.filter((conversation) => showArchived ? Boolean(conversation.archived_at) : !conversation.archived_at),
@@ -1089,6 +1115,10 @@ export default function ChatPage() {
 
   function selectAttachment(file: File | null) {
     if (!file) return;
+    if (file.type.startsWith("image/") || file.type.startsWith("video/")) {
+      setError("Tiger Chat is text/audio only. Images and videos are disabled.");
+      return;
+    }
     if (file.size > MAX_ATTACHMENT_BYTES) {
       setError("Attachments must be 6 MB or smaller.");
       return;
@@ -1103,7 +1133,7 @@ export default function ChatPage() {
   }
 
   function pasteAttachment(event: ReactClipboardEvent<HTMLTextAreaElement>) {
-    const file = Array.from(event.clipboardData.files).find((candidate) => candidate.type.startsWith("image/"));
+    const file = Array.from(event.clipboardData.files).find((candidate) => !candidate.type.startsWith("image/") && !candidate.type.startsWith("video/"));
     if (file) selectAttachment(file);
   }
 
@@ -1985,8 +2015,9 @@ export default function ChatPage() {
                   </div>
                 )}
                 <div className="composer-row-v5">
-                  <input ref={fileInputRef} className="hidden-file-input" type="file" onChange={chooseAttachment} />
+                  <input ref={fileInputRef} className="hidden-file-input" type="file" accept="audio/webm,audio/ogg,audio/mpeg,audio/mp4,audio/wav,text/plain,text/csv,application/pdf,application/json,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip" onChange={chooseAttachment} />
                   <button type="button" className="attach-button" onClick={() => fileInputRef.current?.click()} aria-label="Attach a file">＋</button>
+                  <VoiceRecorder onRecorded={(file) => selectAttachment(file)} disabled={sending || activeBlocked} />
                   <textarea
                     value={draft}
                     onChange={(event) => updateDraft(event.target.value)}
