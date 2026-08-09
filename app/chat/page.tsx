@@ -686,7 +686,7 @@ export default function ChatPage() {
 
         void getDevicePushState().then(setPushState).catch(() => undefined);
       } catch (bootError) {
-        setError(bootError instanceof Error ? bootError.message : "Could not load Pulse Chat.");
+        setError(bootError instanceof Error ? bootError.message : "Could not load Tiger Chat.");
       }
     }
 
@@ -1178,7 +1178,7 @@ export default function ChatPage() {
         messageId = inserted?.id ? String(inserted.id) : null;
       }
 
-      if (!messageId) throw new Error("Pulse could not confirm the sent message.");
+      if (!messageId) throw new Error("Tiger Chat could not confirm the sent message.");
 
       if (pending.file && uploadedPath) {
         const { error: attachmentError } = await supabase.from("message_attachments").insert({
@@ -1796,7 +1796,7 @@ export default function ChatPage() {
   }
 
   if (!user || !me) {
-    return <main className="loading-shell loading-shell-v8"><div className="loading-sidebar-v8"><span/><span/><span/><span/></div><div className="loading-chat-v8"><span/><span/><span/></div><p className="sr-only">Loading Pulse Chat…</p></main>;
+    return <main className="loading-shell loading-shell-v8"><div className="loading-sidebar-v8"><span/><span/><span/><span/></div><div className="loading-chat-v8"><span/><span/><span/></div><p className="sr-only">Loading Tiger Chat…</p></main>;
   }
 
   return (
@@ -1807,7 +1807,7 @@ export default function ChatPage() {
         <header className="sidebar-header-v5">
           <div className="brand-lockup compact">
             <div className="brand-mark">P</div>
-            <div><strong>Pulse Chat</strong><span>@{me.username}</span></div>
+            <div><strong>Tiger Chat</strong><span>@{me.username}</span></div>
           </div>
           <div className="header-actions">
             <button type="button" className="icon-button" onClick={() => setGlobalSearchOpen(true)} title="Search chats and messages" aria-label="Search chats and messages">⌕</button>
