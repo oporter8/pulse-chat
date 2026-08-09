@@ -99,14 +99,16 @@ export default function AuthPage() {
   return (
     <main className="auth-shell">
       <section className="auth-card">
-        <div className="brand-lockup">
-          <div className="brand-mark">
-  <img src="/icons/pulse-192.png" alt="Tiger Chat" />
+       <div className="brand-lockup">
+  <div className="brand-mark">
+    <img src="/icons/pulse-192.png" alt="Tiger Chat" />
+  </div>
+
+  <div>
+    <h1>Tiger Chat</h1>
+    <p>Realtime messaging, built from scratch.</p>
+  </div>
 </div>
-            <h1>Tiger Chat</h1>
-            <p>Realtime messaging, built from scratch.</p>
-          </div>
-        </div>
 
         {mode !== "forgot" ? (
           <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
