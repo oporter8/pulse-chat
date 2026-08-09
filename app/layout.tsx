@@ -3,9 +3,9 @@ import "./globals.css";
 import { PwaRegister } from "./pwa-register";
 
 export const metadata: Metadata = {
-  title: "Pulse Chat",
+  title: "Tiger Chat",
   description: "Realtime messaging with DMs, groups, reactions, attachments, and profiles.",
-  applicationName: "Pulse Chat",
+  applicationName: "Tiger Chat",
   icons: {
     icon: "/icons/pulse-192.png",
     apple: "/icons/pulse-192.png",
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Pulse",
+    title: "Tiger",
   },
   formatDetection: {
     telephone: false,
