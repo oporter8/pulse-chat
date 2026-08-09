@@ -75,12 +75,18 @@ export default function AuthPage() {
         setMode("login");
         setPassword("");
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
           password,
         });
 
         if (error) throw error;
+        if (!data.session) throw new Error("Pulse could not establish a login session. Please try again.");
+
+        // Tell /chat this navigation came from a fresh password login. This lets
+        // a previously revoked local device key be replaced exactly once without
+        // weakening remote device revocation for already-running sessions.
+        window.sessionStorage.setItem("pulse-fresh-login", "1");
         router.replace(chatDestination());
       }
     } catch (error) {

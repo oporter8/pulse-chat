@@ -594,7 +594,6 @@ export default function ChatPage() {
         }
 
         const currentUser = data.session.user;
-        setUser(currentUser);
         await supabase.realtime.setAuth(data.session.access_token);
 
         const { data: profile, error: profileError } = await supabase
@@ -605,23 +604,50 @@ export default function ChatPage() {
         if (profileError) throw profileError;
         if (!mounted) return;
 
-        setMe(profile as MyProfile);
+        const freshPasswordLogin = window.sessionStorage.getItem("pulse-fresh-login") === "1";
+        window.sessionStorage.removeItem("pulse-fresh-login");
 
-        const deviceKey = getDeviceKey();
+        let deviceKey = getDeviceKey();
         const deviceName = getDeviceName();
-        const { data: deviceRows, error: deviceError } = await supabase.rpc("register_device", {
+        let { data: deviceRows, error: deviceError } = await supabase.rpc("register_device", {
           p_device_key: deviceKey,
           p_device_name: deviceName,
           p_user_agent: navigator.userAgent,
         });
         if (deviceError) throw deviceError;
-        const deviceState = Array.isArray(deviceRows) ? deviceRows[0] : deviceRows;
+        let deviceState = Array.isArray(deviceRows) ? deviceRows[0] : deviceRows;
+
+        // A revoked browser key should still eject an already-running session.
+        // But after the user explicitly enters their password again, treat that as
+        // a fresh device authorization and issue a new local device key instead of
+        // creating a login -> logout loop.
+        if (deviceState && deviceState.allowed === false && freshPasswordLogin) {
+          forgetDeviceKey();
+          deviceKey = getDeviceKey();
+          const retry = await supabase.rpc("register_device", {
+            p_device_key: deviceKey,
+            p_device_name: deviceName,
+            p_user_agent: navigator.userAgent,
+          });
+          if (retry.error) throw retry.error;
+          deviceRows = retry.data;
+          deviceState = Array.isArray(deviceRows) ? deviceRows[0] : deviceRows;
+        }
+
         if (deviceState && deviceState.allowed === false) {
           forgetDeviceKey();
           await supabase.auth.signOut({ scope: "local" });
           router.replace("/");
           return;
         }
+
+        // Do not expose the authenticated user to heartbeat/presence effects until
+        // device validation has completed. Starting those effects earlier allowed
+        // an old revoked device key to sign a successful login straight back out.
+        if (!mounted) return;
+        setUser(currentUser);
+        setMe(profile as MyProfile);
+
         if (deviceState?.is_new) {
           void fetch("/api/security/login-alert", {
             method: "POST",
@@ -667,11 +693,14 @@ export default function ChatPage() {
     void boot();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!session) {
+      // Boot already handles a genuinely missing initial session. Restrict redirects
+      // here to a real SIGNED_OUT event so a transient null auth callback cannot
+      // bounce a valid login back to the auth screen.
+      if (event === "SIGNED_OUT") {
         router.replace("/");
         return;
       }
-      if ((event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session.access_token) {
+      if (session && (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") && session.access_token) {
         void supabase.realtime.setAuth(session.access_token);
       }
     });
