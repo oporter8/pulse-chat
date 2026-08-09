@@ -38,3 +38,17 @@ export function formatBytes(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+export function formatLastSeen(value: string | null | undefined) {
+  if (!value) return "Offline";
+  const delta = Date.now() - new Date(value).getTime();
+  if (!Number.isFinite(delta) || delta < 0) return "Offline";
+  const minutes = Math.floor(delta / 60_000);
+  if (minutes < 1) return "Active just now";
+  if (minutes < 60) return `Active ${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `Active ${hours} hr${hours === 1 ? "" : "s"} ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `Active ${days} day${days === 1 ? "" : "s"} ago`;
+  return `Active ${new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(new Date(value))}`;
+}

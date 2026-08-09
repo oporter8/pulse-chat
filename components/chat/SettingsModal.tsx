@@ -1,11 +1,15 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useEffect, useState } from "react";
-import type { DmPrivacy, MyProfile, Profile, Report, Theme } from "@/lib/chat-types";
+import type { DmPrivacy, MyProfile, NotificationSound, Profile, Report, Theme } from "@/lib/chat-types";
 import type { DevicePushState } from "@/lib/push-client";
 import { Avatar } from "@/components/chat/Avatar";
 import { AdminPanel } from "@/components/chat/AdminPanel";
 import { formatDateTime } from "@/lib/chat-utils";
+import { SecurityPanel } from "@/components/chat/SecurityPanel";
+import { ReportHistory } from "@/components/chat/ReportHistory";
+import { cropSquareImage } from "@/lib/image-crop";
+import { supabase } from "@/lib/supabase";
 
 type PreferenceValues = {
   dmPrivacy: DmPrivacy;
@@ -13,6 +17,7 @@ type PreferenceValues = {
   showOnlineStatus: boolean;
   notificationsEnabled: boolean;
   notificationPreview: boolean;
+  notificationSound: NotificationSound;
 };
 
 type SettingsModalProps = {
@@ -24,12 +29,14 @@ type SettingsModalProps = {
   isAdmin: boolean;
   reports: Report[];
   pushState: DevicePushState;
+  initialTab?: "profile" | "privacy" | "notifications" | "security" | "moderation";
   onClose: () => void;
   onThemeChange: (theme: Theme) => void;
   onSaveProfile: (values: {
     username: string;
     displayName: string;
     bio: string;
+    statusText: string;
     avatarFile: File | null;
   }) => Promise<void>;
   onSavePreferences: (values: PreferenceValues) => Promise<void>;
@@ -50,6 +57,7 @@ export function SettingsModal({
   isAdmin,
   reports,
   pushState,
+  initialTab = "profile",
   onClose,
   onThemeChange,
   onSaveProfile,
@@ -64,35 +72,61 @@ export function SettingsModal({
   const [username, setUsername] = useState(profile.username);
   const [displayName, setDisplayName] = useState(profile.display_name);
   const [bio, setBio] = useState(profile.bio);
+  const [statusText, setStatusText] = useState(profile.status_text);
+  const [cropZoom, setCropZoom] = useState(1);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [savingPreferences, setSavingPreferences] = useState(false);
   const [pushWorking, setPushWorking] = useState(false);
-  const [tab, setTab] = useState<"profile" | "privacy" | "notifications" | "moderation">("profile");
+  const [tab, setTab] = useState<"profile" | "privacy" | "notifications" | "security" | "moderation">("profile");
 
   const [dmPrivacy, setDmPrivacy] = useState<DmPrivacy>(profile.dm_privacy);
   const [showReadReceipts, setShowReadReceipts] = useState(profile.show_read_receipts);
   const [showOnlineStatus, setShowOnlineStatus] = useState(profile.show_online_status);
   const [notificationsEnabled, setNotificationsEnabled] = useState(profile.notifications_enabled);
   const [notificationPreview, setNotificationPreview] = useState(profile.notification_preview);
+  const [notificationSound, setNotificationSound] = useState<NotificationSound>(profile.notification_sound);
 
   useEffect(() => {
     if (!open) return;
     setUsername(profile.username);
     setDisplayName(profile.display_name);
     setBio(profile.bio);
+    setStatusText(profile.status_text);
+    setCropZoom(1);
+    setUsernameAvailable(null);
     setAvatarFile(null);
     setAvatarPreview(null);
     setMessage("");
-    setTab("profile");
+    setTab(initialTab);
     setDmPrivacy(profile.dm_privacy);
     setShowReadReceipts(profile.show_read_receipts);
     setShowOnlineStatus(profile.show_online_status);
     setNotificationsEnabled(profile.notifications_enabled);
     setNotificationPreview(profile.notification_preview);
-  }, [open, profile]);
+    setNotificationSound(profile.notification_sound);
+  }, [initialTab, open, profile]);
+
+  useEffect(() => {
+    if (!open) return;
+    const clean = username.trim().toLowerCase();
+    if (!/^[a-z0-9_]{3,20}$/.test(clean)) {
+      setUsernameAvailable(null);
+      return;
+    }
+    if (clean === profile.username) {
+      setUsernameAvailable(true);
+      return;
+    }
+    const timer = window.setTimeout(async () => {
+      const { data } = await supabase.rpc("username_available", { candidate: clean });
+      setUsernameAvailable(Boolean(data));
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [open, profile.username, username]);
 
   useEffect(() => {
     return () => {
@@ -141,11 +175,14 @@ export function SettingsModal({
 
     setSaving(true);
     try {
+      let finalAvatar = avatarFile;
+      if (finalAvatar) finalAvatar = await cropSquareImage(finalAvatar, cropZoom);
       await onSaveProfile({
         username: cleanUsername,
         displayName: cleanDisplayName,
         bio: bio.trim(),
-        avatarFile,
+        statusText: statusText.trim(),
+        avatarFile: finalAvatar,
       });
       setAvatarFile(null);
       setAvatarPreview(null);
@@ -167,6 +204,7 @@ export function SettingsModal({
         showOnlineStatus,
         notificationsEnabled,
         notificationPreview,
+        notificationSound,
       });
       setMessage("Preferences saved.");
     } catch (error) {
@@ -208,6 +246,7 @@ export function SettingsModal({
             <button type="button" className={tab === "profile" ? "active" : ""} onClick={() => { setTab("profile"); setMessage(""); }}>Profile</button>
             <button type="button" className={tab === "privacy" ? "active" : ""} onClick={() => { setTab("privacy"); setMessage(""); }}>Privacy</button>
             <button type="button" className={tab === "notifications" ? "active" : ""} onClick={() => { setTab("notifications"); setMessage(""); }}>Notifications</button>
+            <button type="button" className={tab === "security" ? "active" : ""} onClick={() => { setTab("security"); setMessage(""); }}>Security</button>
             {isAdmin && (
               <button type="button" className={tab === "moderation" ? "active" : ""} onClick={() => { setTab("moderation"); setMessage(""); }}>Moderation</button>
             )}
@@ -226,6 +265,7 @@ export function SettingsModal({
                     Change photo
                     <input type="file" accept="image/jpeg,image/png,image/webp,image/gif" onChange={chooseAvatar} />
                   </label>
+                  {avatarFile && <label className="crop-control-v8">Crop zoom<input type="range" min="1" max="2.5" step="0.05" value={cropZoom} onChange={(event) => setCropZoom(Number(event.target.value))} /></label>}
                 </div>
 
                 <div className="two-column-fields">
@@ -236,9 +276,16 @@ export function SettingsModal({
 
                   <label>
                     Username
-                    <input value={username} onChange={(event) => setUsername(event.target.value)} maxLength={20} autoComplete="username" />
+                    <input value={username} onChange={(event) => { setUsername(event.target.value); setUsernameAvailable(null); }} maxLength={20} autoComplete="username" />
+                    {usernameAvailable !== null && <small className={usernameAvailable ? "availability-good-v8" : "availability-bad-v8"}>{usernameAvailable ? "Username available" : "Username already taken"}</small>}
                   </label>
                 </div>
+
+                <label>
+                  Status
+                  <input value={statusText} onChange={(event) => setStatusText(event.target.value)} maxLength={60} placeholder="At practice, studying, available…" />
+                  <small>{statusText.length}/60</small>
+                </label>
 
                 <label>
                   Bio
@@ -278,6 +325,7 @@ export function SettingsModal({
                     <span><strong>Who can start a DM?</strong><small>Controls new conversations.</small></span>
                     <select value={dmPrivacy} onChange={(event) => setDmPrivacy(event.target.value as DmPrivacy)}>
                       <option value="everyone">Everyone</option>
+                      <option value="requests">Everyone, but send requests first</option>
                       <option value="mutual_groups">People in shared groups</option>
                       <option value="nobody">Nobody</option>
                     </select>
@@ -316,6 +364,8 @@ export function SettingsModal({
                   )}
                 </div>
 
+                <ReportHistory open={open && tab === "privacy"} />
+
                 {message && <p className="inline-status" aria-live="polite">{message}</p>}
                 <div className="modal-actions">
                   <button type="button" className="primary-button" onClick={() => void savePreferences()} disabled={savingPreferences}>
@@ -342,6 +392,13 @@ export function SettingsModal({
                     <input type="checkbox" checked={notificationPreview} onChange={(event) => setNotificationPreview(event.target.checked)} />
                   </label>
                 </div>
+
+                <label className="setting-select-row">
+                  <span><strong>Foreground sound</strong><small>Used while Pulse is open. Background web-push sound is controlled by the device/browser.</small></span>
+                  <select value={notificationSound} onChange={(event) => setNotificationSound(event.target.value as NotificationSound)}>
+                    <option value="default">Default</option><option value="soft">Soft</option><option value="pop">Pop</option><option value="none">None</option>
+                  </select>
+                </label>
 
                 <div className="device-notification-card">
                   <div>
@@ -373,6 +430,10 @@ export function SettingsModal({
                   </button>
                 </div>
               </div>
+            )}
+
+            {tab === "security" && (
+              <div className="settings-section-v5"><SecurityPanel email={email} onDeleted={() => { void onSignOut(); }} /></div>
             )}
 
             {tab === "moderation" && isAdmin && (

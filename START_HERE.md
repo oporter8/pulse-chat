@@ -1,60 +1,28 @@
-# Pulse Chat v6 — START HERE
+# Pulse Chat v8 — START HERE
 
-This is the complete replacement project.
+This is the full replacement project.
 
-## 1. Preserve your current environment file
+## Existing Pulse v7 install
 
-Before replacing your existing files, keep a copy of `.env.local`. Real credentials are intentionally not included here.
+1. Save your current `.env.local` somewhere safe.
+2. Replace the project files with this folder.
+3. Put `.env.local` back in the project root.
+4. Run `supabase/v8_migration.sql` once in the Supabase SQL Editor.
+5. Run:
 
-## 2. Upgrade the database
+   ```bash
+   npm install
+   npm run build
+   ```
 
-Because your existing Pulse database is already on v5, run this in Supabase SQL Editor:
+6. If the build passes, commit and push:
 
-`supabase/v6_migration.sql`
+   ```bash
+   git add .
+   git commit -m "Upgrade Pulse Chat to v8"
+   git push origin main
+   ```
 
-Then run:
+Do not run `supabase/fresh_install.sql` on your existing database.
 
-`supabase/realtime.sql`
-
-Do not run `fresh_install.sql` on the existing database.
-
-## 3. Install and configure push
-
-```bash
-npm install
-npm run generate:vapid
-```
-
-Add the generated VAPID values plus `SUPABASE_SECRET_KEY` to `.env.local` and Vercel. See `V6_SETUP.md` for the exact variable names and security notes.
-
-## 4. Build before deploying
-
-```bash
-npm run build
-```
-
-Only after the build succeeds:
-
-```bash
-git add .
-git commit -m "Upgrade Pulse Chat to v6"
-git push origin main
-```
-
-## v6 highlights
-
-- Password reset email + reset-password screen
-- Real background Web Push notifications
-- Per-device notification enrollment
-- Global notification and preview preferences
-- Per-chat mute
-- Global conversation/message search with jump-to-message
-- New-DM privacy controls
-- Read-receipt privacy without breaking unread counts
-- Online-status privacy
-- Push replay protection and stale-subscription cleanup
-- All previous v5 messaging/group/moderation/PWA/device-responsive features
-
-
-## V7 OWNER/ADMIN
-After v6, run `supabase/v7_migration.sql`. See `V7_SETUP.md`.
+Read `V8_SETUP.md` for the full feature list, environment variables, and deployment notes.

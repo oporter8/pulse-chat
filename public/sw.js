@@ -1,4 +1,4 @@
-const CACHE_NAME = "pulse-shell-v6";
+const CACHE_NAME = "pulse-shell-v8";
 const SHELL = ["/", "/icons/pulse-192.png", "/icons/pulse-512.png"];
 
 self.addEventListener("install", (event) => {
@@ -86,6 +86,10 @@ self.addEventListener("push", (event) => {
       data: { url: payload.url },
       renotify: false,
     });
+    // Installed browsers that support the Badging API get an immediate unread
+    // indicator in the background. The open app replaces this with the exact
+    // unread total after it syncs conversations.
+    try { await self.navigator?.setAppBadge?.(1); } catch { /* unsupported */ }
   })());
 });
 

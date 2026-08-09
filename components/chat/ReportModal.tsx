@@ -15,11 +15,13 @@ export function ReportModal({ open, targetLabel, onClose, onSubmit }: ReportModa
   const [reason, setReason] = useState<ReportReason>("spam");
   const [details, setDetails] = useState("");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (!open) return;
     setReason("spam");
     setDetails("");
+    setError("");
   }, [open]);
 
   if (!open) return null;
@@ -27,9 +29,12 @@ export function ReportModal({ open, targetLabel, onClose, onSubmit }: ReportModa
   async function submit(event: FormEvent) {
     event.preventDefault();
     setSaving(true);
+    setError("");
     try {
       await onSubmit(reason, details.trim());
       onClose();
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Could not submit the report.");
     } finally {
       setSaving(false);
     }
@@ -70,6 +75,8 @@ export function ReportModal({ open, targetLabel, onClose, onSubmit }: ReportModa
               placeholder="Add useful context for the moderator."
             />
           </label>
+
+          {error && <p className="inline-status" role="alert">{error}</p>}
 
           <div className="modal-actions">
             <button type="button" className="secondary-button" onClick={onClose}>Cancel</button>

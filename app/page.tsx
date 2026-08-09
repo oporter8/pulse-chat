@@ -16,9 +16,15 @@ export default function AuthPage() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
+  function chatDestination() {
+    if (typeof window === "undefined") return "/chat";
+    const requestedUser = new URLSearchParams(window.location.search).get("user")?.trim();
+    return requestedUser ? `/chat?user=${encodeURIComponent(requestedUser)}` : "/chat";
+  }
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) router.replace("/chat");
+      if (data.session) router.replace(chatDestination());
     });
   }, [router]);
 
@@ -75,7 +81,7 @@ export default function AuthPage() {
         });
 
         if (error) throw error;
-        router.replace("/chat");
+        router.replace(chatDestination());
       }
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Something went wrong.");

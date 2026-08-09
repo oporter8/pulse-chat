@@ -1,12 +1,24 @@
-# Deploy Pulse Chat v6
+# Deploy Pulse Chat v8
 
-1. Run `supabase/v6_migration.sql` on an existing v5 database.
-2. Run `supabase/realtime.sql`.
-3. Run `npm install`.
-4. Run `npm run generate:vapid` and configure the VAPID/server environment variables from `V6_SETUP.md`.
-5. Make sure Supabase Auth allows `/reset-password` on your production URL.
-6. Run `npm run build` locally.
-7. Commit and push to `main` only after the build succeeds.
-8. In Vercel, confirm Production has all variables from `.env.example`.
+1. Save your current `.env.local` before replacing the project.
+2. Existing v7 database: run `supabase/v8_migration.sql` once in Supabase SQL Editor.
+3. Keep the Vercel variables listed in `.env.example` configured for Production (and Preview if you use it).
+4. Run:
 
-The real `.env.local`, server secret key, and VAPID private key must never be committed.
+   ```bash
+   npm install
+   npm run build
+   ```
+
+5. Confirm Supabase Auth URL Configuration includes your production domain and `/reset-password` redirects.
+6. Commit and push only after the production build succeeds:
+
+   ```bash
+   git add .
+   git commit -m "Upgrade Pulse Chat to v8"
+   git push origin main
+   ```
+
+7. Verify Vercel redeploys and then test: login, a DM, push notifications, message search, and Settings → Security.
+
+Never commit `.env.local`, `SUPABASE_SECRET_KEY`, or `VAPID_PRIVATE_KEY`.

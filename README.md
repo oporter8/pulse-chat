@@ -1,19 +1,22 @@
-# Pulse Chat v6
+# Pulse Chat v8
 
-Pulse Chat is a responsive realtime messaging app built with Next.js, React, TypeScript, Supabase Auth/Postgres/Storage/Realtime, and Web Push.
+Pulse Chat is a private realtime messaging app built with Next.js and Supabase. v8 focuses on everyday messenger features: DMs/groups, delivery/read states, profiles, push notifications, saved/forwarded messages, chat search/media, privacy controls, message requests, PWA support, session security, and moderation.
 
-## Features
+## Start
 
-- Email/password auth and password recovery
-- Profiles, avatars, display names, and bios
-- DMs and group chats
-- Realtime messages, presence, and typing
-- Replies, edits, deletes, reactions, attachments
-- Read receipts and private unread tracking
-- Conversation and full-message search
-- Browser/PWA push notifications with per-chat mute
-- DM/read-receipt/online-status privacy controls
-- Blocking, reporting, moderation tools, and anti-spam limits
-- Responsive phone/tablet/desktop UI and installable PWA
+For an existing v7 project, read `START_HERE.md` and `V8_SETUP.md`.
 
-For an existing v5 deployment, start with `START_HERE.md` and `V6_SETUP.md`.
+```bash
+npm install
+npm run build
+npm run dev
+```
+
+The app requires Supabase public browser credentials plus server-only Supabase/VAPID values for account administration, account deletion, Web Push, and login alerts. See `.env.example`.
+
+## Database
+
+- Existing v7 database: run `supabase/v8_migration.sql` once.
+- Brand-new database: run `supabase/fresh_install.sql`.
+
+Do not run the fresh-install script over an existing production database.
