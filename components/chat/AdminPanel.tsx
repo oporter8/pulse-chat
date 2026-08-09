@@ -90,7 +90,7 @@ export function AdminPanel({ currentUserId, currentTag, onTagChanged }: AdminPan
     <div className="admin-panel-v7">
       <section className="admin-card-v7">
         <h3>Owner badge</h3>
-        <p className="muted-copy">This badge appears beside your name in Pulse.</p>
+        <p className="muted-copy">This badge appears beside your name in Tiger Chat.</p>
         <div className="admin-tag-editor-v7">
           <input value={tag} onChange={(event) => setTag(event.target.value)} maxLength={16} />
           <span className="admin-badge-v7">{tag.trim() || "OWNER"}</span>
