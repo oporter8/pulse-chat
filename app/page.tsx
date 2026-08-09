@@ -102,7 +102,7 @@ export default function AuthPage() {
         <div className="brand-lockup">
           <div className="brand-mark">P</div>
           <div>
-            <h1>Pulse Chat</h1>
+            <h1>Tiger Chat</h1>
             <p>Realtime messaging, built from scratch.</p>
           </div>
         </div>
@@ -155,7 +155,7 @@ export default function AuthPage() {
                 <input
                   value={displayName}
                   onChange={(event) => setDisplayName(event.target.value)}
-                  placeholder="Owen Porter"
+                  placeholder="First Last"
                   autoComplete="name"
                   maxLength={40}
                 />
@@ -165,7 +165,7 @@ export default function AuthPage() {
                 <input
                   value={username}
                   onChange={(event) => setUsername(event.target.value)}
-                  placeholder="owen_porter"
+                  placeholder="username"
                   autoComplete="username"
                   maxLength={20}
                   required
