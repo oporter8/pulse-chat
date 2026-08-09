@@ -37,7 +37,7 @@ export default function AuthPage() {
       if (mode === "forgot") {
         const cleanEmail = email.trim();
         if (!cleanEmail) {
-          setMessage("Enter the email address on your Pulse account.");
+          setMessage("Enter the email address on your Tiger account.");
           return;
         }
 
@@ -81,7 +81,7 @@ export default function AuthPage() {
         });
 
         if (error) throw error;
-        if (!data.session) throw new Error("Pulse could not establish a login session. Please try again.");
+        if (!data.session) throw new Error("TigerChat could not establish a login session. Please try again.");
 
         // Tell /chat this navigation came from a fresh password login. This lets
         // a previously revoked local device key be replaced exactly once without
