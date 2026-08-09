@@ -11,14 +11,32 @@ export function ReportHistory({ open }: { open: boolean }) {
 
   useEffect(() => {
     if (!open) return;
-    setLoading(true);
-    void supabase
-      .from("reports")
-      .select("id,reporter_id,reported_user_id,message_id,reason,details,status,created_at,reviewed_at,reviewed_by")
-      .order("created_at", { ascending: false })
-      .limit(50)
-      .then(({ data }) => setReports((data ?? []) as Report[]))
-      .finally(() => setLoading(false));
+
+    let cancelled = false;
+
+    async function loadReports() {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("reports")
+          .select("id,reporter_id,reported_user_id,message_id,reason,details,status,created_at,reviewed_at,reviewed_by")
+          .order("created_at", { ascending: false })
+          .limit(50);
+
+        if (error) throw error;
+        if (!cancelled) setReports((data ?? []) as Report[]);
+      } catch (error) {
+        console.error("Could not load report history:", error);
+        if (!cancelled) setReports([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void loadReports();
+    return () => {
+      cancelled = true;
+    };
   }, [open]);
 
   if (!open) return null;
