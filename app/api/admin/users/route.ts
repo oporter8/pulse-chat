@@ -1,99 +1,57 @@
-import { createClient } from "@supabase/supabase-js";
+import { authorizeAppAdmin } from "@/lib/admin-server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function config() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-  const secretKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!url || !publishableKey || !secretKey) throw new Error("Supabase server environment variables are missing.");
-  return { url, publishableKey, secretKey };
-}
-
-async function authorize(request: Request) {
-  const authorization = request.headers.get("authorization");
-  if (!authorization?.startsWith("Bearer ")) return null;
-  const token = authorization.slice("Bearer ".length).trim();
-  const cfg = config();
-
-  const client = createClient(cfg.url, cfg.publishableKey, {
-    auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
-  });
-  const { data, error } = await client.auth.getUser(token);
-  if (error || !data.user) return null;
-
-  const admin = createClient(cfg.url, cfg.secretKey, {
-    auth: { autoRefreshToken: false, persistSession: false, detectSessionInUrl: false },
-  });
-  const { data: adminRow } = await admin.from("app_admins").select("user_id").eq("user_id", data.user.id).maybeSingle();
-  if (!adminRow) return null;
-  return { user: data.user, admin };
-}
-
 export async function GET(request: Request) {
   try {
-    const auth = await authorize(request);
+    const auth = await authorizeAppAdmin(request);
     if (!auth) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const q = new URL(request.url).searchParams.get("q")?.trim().toLowerCase() || "";
     const { data: authData, error: authError } = await auth.admin.auth.admin.listUsers({ page: 1, perPage: 200 });
     if (authError) throw authError;
 
-    const authUsers = authData.users;
-    const ids = authUsers.map((user) => user.id);
-
+    const ids = authData.users.map((user) => user.id);
     let profiles: Array<Record<string, any>> = [];
     let adminRows: Array<Record<string, any>> = [];
-    let accessRows: Array<Record<string, any>> = [];
 
     if (ids.length) {
-      const profileResult = await auth.admin
-        .from("profiles")
-        .select("id, username, display_name, avatar_path, admin_tag, status_text, last_active_at, created_at")
-        .in("id", ids);
+      const [profileResult, adminResult] = await Promise.all([
+        auth.admin
+          .from("profiles")
+          .select("id,username,display_name,admin_tag,status_text,last_active_at,created_at,supporter,supporter_since,supporter_label,profile_emoji")
+          .in("id", ids),
+        auth.admin.from("app_admins").select("user_id").in("user_id", ids),
+      ]);
       if (profileResult.error) throw profileResult.error;
-      profiles = profileResult.data ?? [];
-
-      const adminResult = await auth.admin.from("app_admins").select("user_id").in("user_id", ids);
       if (adminResult.error) throw adminResult.error;
+      profiles = profileResult.data ?? [];
       adminRows = adminResult.data ?? [];
-
-      const accessResult = await auth.admin
-        .from("app_access")
-        .select("user_id,access_type,granted_at,amount_paid_cents,revoked_at")
-        .in("user_id", ids);
-      if (accessResult.error) throw accessResult.error;
-      accessRows = accessResult.data ?? [];
     }
 
-    const profileById = new Map((profiles ?? []).map((profile: any) => [profile.id, profile]));
-    const adminIds = new Set((adminRows ?? []).map((row: any) => row.user_id));
-    const accessById = new Map((accessRows ?? []).map((row: any) => [row.user_id, row]));
+    const profileById = new Map(profiles.map((profile: any) => [profile.id, profile]));
+    const adminIds = new Set(adminRows.map((row: any) => row.user_id));
 
-    const users = authUsers
+    const users = authData.users
       .map((user) => {
         const profile: any = profileById.get(user.id);
-        const access: any = accessById.get(user.id);
-        const isAdmin = adminIds.has(user.id);
-        const activeGrant = Boolean(access && !access.revoked_at);
         return {
           id: user.id,
           email: user.email ?? "",
           username: profile?.username ?? "",
           display_name: profile?.display_name ?? profile?.username ?? "User",
-          avatar_path: profile?.avatar_path ?? null,
           admin_tag: profile?.admin_tag ?? null,
           status_text: profile?.status_text ?? "",
+          profile_emoji: profile?.profile_emoji ?? "🐯",
           last_active_at: profile?.last_active_at ?? null,
           created_at: profile?.created_at ?? user.created_at,
           last_sign_in_at: user.last_sign_in_at ?? null,
           banned_until: user.banned_until ?? null,
-          is_admin: isAdmin,
-          has_access: isAdmin || activeGrant,
-          access_type: isAdmin ? "admin" : activeGrant ? access?.access_type ?? null : null,
-          access_granted_at: activeGrant ? access?.granted_at ?? null : null,
-          amount_paid_cents: activeGrant && typeof access?.amount_paid_cents === "number" ? access.amount_paid_cents : null,
+          is_admin: adminIds.has(user.id),
+          supporter: Boolean(profile?.supporter),
+          supporter_since: profile?.supporter_since ?? null,
+          supporter_label: profile?.supporter_label ?? "SUPPORTER",
         };
       })
       .filter((user) => {
@@ -104,74 +62,57 @@ export async function GET(request: Request) {
 
     return Response.json({ users });
   } catch (error) {
-    console.error("Pulse admin user lookup failed:", error);
+    console.error("Tiger admin user lookup failed:", error);
     return Response.json({ error: error instanceof Error ? error.message : "Admin lookup failed." }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const auth = await authorize(request);
+    const auth = await authorizeAppAdmin(request);
     if (!auth) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = (await request.json().catch(() => null)) as {
       userId?: unknown;
       banDuration?: unknown;
-      accessAction?: unknown;
+      supporterAction?: unknown;
+      supporterLabel?: unknown;
     } | null;
+
     const userId = typeof body?.userId === "string" ? body.userId : "";
     const banDuration = typeof body?.banDuration === "string" ? body.banDuration : "";
-    const accessAction = typeof body?.accessAction === "string" ? body.accessAction : "";
+    const supporterAction = typeof body?.supporterAction === "string" ? body.supporterAction : "";
+    const supporterLabel = typeof body?.supporterLabel === "string" ? body.supporterLabel.trim().slice(0, 16) : "SUPPORTER";
 
     if (!/^[0-9a-f-]{36}$/i.test(userId)) return Response.json({ error: "Invalid user id." }, { status: 400 });
 
-    if (accessAction) {
-      if (!/^(grant_free|remove_free)$/.test(accessAction)) {
-        return Response.json({ error: "Invalid access action." }, { status: 400 });
+    if (supporterAction) {
+      if (!/^(grant|remove)$/.test(supporterAction)) {
+        return Response.json({ error: "Invalid supporter action." }, { status: 400 });
       }
+      const enabled = supporterAction === "grant";
+      const { error } = await auth.admin
+        .from("profiles")
+        .update({
+          supporter: enabled,
+          supporter_since: enabled ? new Date().toISOString() : null,
+          supporter_label: supporterLabel || "SUPPORTER",
+          profile_frame: enabled ? "supporter" : "none",
+        })
+        .eq("id", userId);
+      if (error) throw error;
 
-      const { data: targetAdmin } = await auth.admin.from("app_admins").select("user_id").eq("user_id", userId).maybeSingle();
-      if (targetAdmin) return Response.json({ ok: true, accessType: "admin" });
-
-      const { data: currentAccess, error: accessReadError } = await auth.admin
-        .from("app_access")
-        .select("access_type,revoked_at")
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (accessReadError) throw accessReadError;
-
-      if (accessAction === "grant_free") {
-        if (currentAccess?.access_type === "paid" && !currentAccess.revoked_at) {
-          return Response.json({ ok: true, accessType: "paid" });
+      if (!enabled) {
+        const { data: loungeRows } = await auth.admin
+          .from("conversations")
+          .select("id")
+          .eq("supporter_only", true);
+        const loungeIds = (loungeRows ?? []).map((row: any) => row.id);
+        if (loungeIds.length) {
+          await auth.admin.from("conversation_members").delete().eq("user_id", userId).in("conversation_id", loungeIds);
         }
-        const now = new Date().toISOString();
-        const { error } = await auth.admin.from("app_access").upsert({
-          user_id: userId,
-          access_type: "comped",
-          granted_at: now,
-          granted_by: auth.user.id,
-          stripe_checkout_session_id: null,
-          stripe_payment_intent_id: null,
-          amount_paid_cents: null,
-          revoked_at: null,
-          updated_at: now,
-        }, { onConflict: "user_id" });
-        if (error) throw error;
-        return Response.json({ ok: true, accessType: "comped" });
       }
-
-      if (currentAccess?.access_type === "paid" && !currentAccess.revoked_at) {
-        return Response.json({ error: "This account already paid. Free access cannot replace or remove a paid grant." }, { status: 409 });
-      }
-
-      if (currentAccess?.access_type === "comped" && !currentAccess.revoked_at) {
-        const { error } = await auth.admin.from("app_access").update({
-          revoked_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }).eq("user_id", userId).eq("access_type", "comped");
-        if (error) throw error;
-      }
-      return Response.json({ ok: true, accessType: null });
+      return Response.json({ ok: true, supporter: enabled });
     }
 
     if (!/^(none|24h|168h|876000h)$/.test(banDuration)) {
@@ -188,18 +129,12 @@ export async function POST(request: Request) {
         .update({ revoked_at: new Date().toISOString() })
         .eq("user_id", userId)
         .is("revoked_at", null);
-      if (deviceError) {
-        console.error("Pulse device revocation failed after auth ban:", deviceError);
-        return Response.json(
-          { error: "The account was banned, but its active Pulse devices could not be revoked. Check the v8 migration and try again." },
-          { status: 500 },
-        );
-      }
+      if (deviceError) throw deviceError;
     }
 
     return Response.json({ ok: true, suspended: banDuration !== "none" });
   } catch (error) {
-    console.error("Pulse admin action failed:", error);
+    console.error("Tiger admin action failed:", error);
     return Response.json({ error: error instanceof Error ? error.message : "Admin action failed." }, { status: 500 });
   }
 }

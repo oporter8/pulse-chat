@@ -430,28 +430,11 @@ export function SettingsModal({
 
             {tab === "moderation" && isAdmin && (
               <div className="settings-section-v5">
-                <AdminPanel currentUserId={profile.id} currentTag={profile.admin_tag} onTagChanged={onAdminTagChanged} />
-                <h3>Open reports</h3>
-                <p className="muted-copy">Only accounts listed in <code>app_admins</code> can access this panel.</p>
-                {reports.filter((report) => report.status === "open").length === 0 ? (
-                  <div className="empty-card">No open reports.</div>
-                ) : (
-                  <div className="report-list">
-                    {reports.filter((report) => report.status === "open").map((report) => (
-                      <article className="report-card" key={report.id}>
-                        <div>
-                          <strong>{report.reason}</strong>
-                          <small>{formatDateTime(report.created_at)}</small>
-                        </div>
-                        {report.details && <p>{report.details}</p>}
-                        <div className="report-actions">
-                          <button type="button" className="secondary-button" onClick={() => void onUpdateReport(report.id, "dismissed")}>Dismiss</button>
-                          <button type="button" className="primary-button" onClick={() => void onUpdateReport(report.id, "resolved")}>Resolve</button>
-                        </div>
-                      </article>
-                    ))}
-                  </div>
-                )}
+                <div className="v12-moderation-launch">
+                  <h3>Moderation Center</h3>
+                  <p>Account controls, reports, supporter status, and operating-goal tools now have a full page so nothing is cramped inside Settings.</p>
+                  <a className="primary-button" href="/moderation">Open Moderation Center</a>
+                </div>
               </div>
             )}
           </div>

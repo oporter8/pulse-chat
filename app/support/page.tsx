@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getV11ProfileStyle } from "@/lib/v11-profile";
+import { VenmoSupportCard } from "@/components/v12/VenmoSupportCard";
 
 type Campaign = { title: string; description: string; goal_cents: number; raised_cents: number };
 
@@ -11,7 +12,8 @@ export default function SupportPage() {
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [supporter, setSupporter] = useState(false);
   const [signedIn, setSignedIn] = useState(false);
-  const supportUrl = process.env.NEXT_PUBLIC_SUPPORT_URL || "";
+  const venmoUrl = process.env.NEXT_PUBLIC_VENMO_PROFILE_URL || process.env.NEXT_PUBLIC_SUPPORT_URL || "";
+  const venmoLabel = process.env.NEXT_PUBLIC_VENMO_DISPLAY_NAME || "Venmo";
 
   useEffect(() => {
     void (async () => {
@@ -26,20 +28,25 @@ export default function SupportPage() {
   }, []);
 
   const percent = campaign && campaign.goal_cents > 0 ? Math.min(100, Math.round((campaign.raised_cents / campaign.goal_cents) * 100)) : 0;
-  return <main className="tiger-v11-shell tiger-support-page">
-    <header className="tiger-v11-header"><div><p className="tiger-eyebrow">Optional support</p><h1>Keep Tiger Chat operating 🐯</h1><p>Tiger Chat messaging stays free. Support is voluntary and never required to send messages.</p></div><Link className="secondary-button" href={signedIn ? "/community" : "/"}>Back</Link></header>
 
-    <section className="tiger-card tiger-support-hero">
-      <h2>{campaign?.title || "Support Tiger Chat"}</h2><p>{campaign?.description || "Help cover hosting, domains, and operating costs."}</p>
-      {campaign && <><div className="tiger-progress large"><span style={{ width: `${percent}%` }} /></div><strong>${(campaign.raised_cents / 100).toFixed(2)} raised of ${(campaign.goal_cents / 100).toFixed(2)} goal</strong></>}
-      {supportUrl ? <a className="primary-button" href={supportUrl} target="_blank" rel="noreferrer">Open support link</a> : <div className="tiger-notice">No online contribution link is configured yet. An admin can add a compliant support option later with <code>NEXT_PUBLIC_SUPPORT_URL</code>.</div>}
-      {supporter && <div className="tiger-supporter-thanks">⭐ You’re marked as a Tiger Chat supporter. Thank you.</div>}
+  return <main className="tiger-v12-page support-v12">
+    <header className="v12-page-header">
+      <div><p className="v12-kicker">Support Center</p><h1>Keep Tiger Chat running</h1><p>Messaging stays free. Support is optional and helps with operating costs.</p></div>
+      <Link className="secondary-button" href={signedIn ? "/community" : "/"}>Back</Link>
+    </header>
+
+    <section className="v12-support-summary">
+      <div><p className="v12-kicker">Current goal</p><h2>{campaign?.title || "Support Tiger Chat"}</h2><p>{campaign?.description || "Help cover hosting, domains, and project operating costs."}</p></div>
+      {campaign && <div className="v12-goal-meter"><div className="tiger-progress large"><span style={{ width: `${percent}%` }} /></div><div><strong>${(campaign.raised_cents / 100).toFixed(2)}</strong><span> of ${(campaign.goal_cents / 100).toFixed(2)} goal · {percent}%</span></div></div>}
+      {supporter && <div className="v12-supporter-thanks">⭐ You’re marked as a Tiger Chat supporter.</div>}
     </section>
 
-    <section className="tiger-v11-grid">
-      <article className="tiger-card"><h3>Everyone gets</h3><p>Full DMs and groups, search, reactions, polls, events, games, Tiger Bot, saved messages, themes, notes, and text/audio features.</p></article>
-      <article className="tiger-card"><h3>Supporter extras</h3><p>Supporter badge, seasonal CSS frames, larger quick-reaction tray, Supporter Lounge, and early-access cosmetics.</p></article>
-      <article className="tiger-card tiger-span-2"><h3>No paywall</h3><p>Donating does not unlock the basic messaging service. Supporter perks are optional extras, and the app remains usable without donating.</p></article>
+    <VenmoSupportCard url={venmoUrl} label={venmoLabel} />
+
+    <section className="v12-three-cards">
+      <article><h3>Free for everyone</h3><p>DMs, groups, search, reactions, polls, events, games, themes, and text/audio messaging stay available without contributing.</p></article>
+      <article><h3>Supporter recognition</h3><p>Supporters can receive cosmetic badges, CSS profile frames, the supporter lounge, and other nonessential extras.</p></article>
+      <article><h3>Manual verification</h3><p>The QR code does not automatically mark an account as a supporter. An admin verifies a contribution in the Moderation Center first.</p></article>
     </section>
   </main>;
 }
