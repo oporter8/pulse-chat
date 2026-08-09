@@ -9,6 +9,8 @@ import type {
   Conversation,
   ConversationMember,
   Message,
+  MessageSearchResult,
+  MyProfile,
   Profile,
   Reaction,
   Report,
@@ -20,7 +22,9 @@ import { MessageItem } from "@/components/chat/MessageItem";
 import { NewGroupModal } from "@/components/chat/NewGroupModal";
 import { ReportModal } from "@/components/chat/ReportModal";
 import { SettingsModal } from "@/components/chat/SettingsModal";
+import { SearchModal } from "@/components/chat/SearchModal";
 import { formatTime, safeFileName } from "@/lib/chat-utils";
+import { disableDevicePush, enableDevicePush, getDevicePushState, type DevicePushState } from "@/lib/push-client";
 
 const PAGE_SIZE = 50;
 const MAX_ATTACHMENT_BYTES = 6 * 1024 * 1024;
@@ -49,7 +53,7 @@ export default function ChatPage() {
   const router = useRouter();
 
   const [user, setUser] = useState<User | null>(null);
-  const [me, setMe] = useState<Profile | null>(null);
+  const [me, setMe] = useState<MyProfile | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -76,6 +80,9 @@ export default function ChatPage() {
   const [hasOlderMessages, setHasOlderMessages] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [mobileChatOpen, setMobileChatOpen] = useState(false);
+  const [globalSearchOpen, setGlobalSearchOpen] = useState(false);
+  const [highlightMessageId, setHighlightMessageId] = useState<string | null>(null);
+  const [pushState, setPushState] = useState<DevicePushState>({ supported: false, permission: "unsupported", enabled: false });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -84,6 +91,7 @@ export default function ChatPage() {
   const typingTimerRef = useRef<number | null>(null);
   const typingSentRef = useRef(false);
   const activeChannelReadyRef = useRef(false);
+  const pendingJumpRef = useRef<MessageSearchResult | null>(null);
 
   const activeConversation = useMemo(
     () => conversations.find((conversation) => conversation.conversation_id === activeConversationId) ?? null,
@@ -95,6 +103,12 @@ export default function ChatPage() {
       activeConversation.other_user_id &&
       blockedUserIds.has(activeConversation.other_user_id),
   );
+
+  const activeMuted = useMemo(() => {
+    const mine = members.find((member) => member.user_id === user?.id);
+    if (!mine?.muted_until) return false;
+    return new Date(mine.muted_until).getTime() > Date.now();
+  }, [members, user?.id]);
 
   const typingNames = useMemo(() => {
     return members
@@ -113,6 +127,8 @@ export default function ChatPage() {
       if (current && next.some((conversation) => conversation.conversation_id === current)) return current;
       return next[0]?.conversation_id ?? null;
     });
+
+    return next;
   }, []);
 
   const loadBlockedUsers = useCallback(async (currentUserId: string) => {
@@ -158,30 +174,27 @@ export default function ChatPage() {
   }, []);
 
   const loadMembers = useCallback(async (conversationId: string) => {
-    const { data, error: memberError } = await supabase
-      .from("conversation_members")
-      .select(`
-        conversation_id,
-        user_id,
-        role,
-        joined_at,
-        last_read_at,
-        profile:profiles!conversation_members_user_id_fkey(
-          id, username, display_name, bio, avatar_path, created_at
-        )
-      `)
-      .eq("conversation_id", conversationId)
-      .order("joined_at", { ascending: true });
+    const { data, error: memberError } = await supabase.rpc("get_conversation_members", {
+      target_conversation: conversationId,
+    });
 
     if (memberError) throw memberError;
 
-    const normalized: ConversationMember[] = (data ?? []).map((row: any) => ({
+    const normalized: ConversationMember[] = ((data ?? []) as Record<string, unknown>[]).map((row) => ({
       conversation_id: String(row.conversation_id),
       user_id: String(row.user_id),
       role: row.role === "owner" || row.role === "admin" ? row.role : "member",
       joined_at: String(row.joined_at),
-      last_read_at: String(row.last_read_at),
-      profile: row.profile as Profile,
+      last_read_at: typeof row.last_read_at === "string" ? row.last_read_at : null,
+      muted_until: typeof row.muted_until === "string" ? row.muted_until : null,
+      profile: {
+        id: String(row.profile_id),
+        username: String(row.username),
+        display_name: String(row.display_name),
+        bio: String(row.bio ?? ""),
+        avatar_path: typeof row.avatar_path === "string" ? row.avatar_path : null,
+        created_at: String(row.profile_created_at),
+      },
     }));
     setMembers(normalized);
   }, []);
@@ -272,17 +285,59 @@ export default function ChatPage() {
     }
   }, [hydrateMessages]);
 
-  const markRead = useCallback(async (conversationId: string, currentUserId: string) => {
+  const loadMessageContext = useCallback(async (conversationId: string, targetCreatedAt: string) => {
+    const baseSelect = "id, conversation_id, sender_id, body, created_at, edited_at, deleted_at, reply_to";
+    const [beforeResult, afterResult] = await Promise.all([
+      supabase
+        .from("messages")
+        .select(baseSelect)
+        .eq("conversation_id", conversationId)
+        .lte("created_at", targetCreatedAt)
+        .order("created_at", { ascending: false })
+        .limit(30),
+      supabase
+        .from("messages")
+        .select(baseSelect)
+        .eq("conversation_id", conversationId)
+        .gt("created_at", targetCreatedAt)
+        .order("created_at", { ascending: true })
+        .limit(30),
+    ]);
+
+    if (beforeResult.error) throw beforeResult.error;
+    if (afterResult.error) throw afterResult.error;
+
+    const byId = new Map<string, Record<string, unknown>>();
+    [...(beforeResult.data ?? []), ...(afterResult.data ?? [])].forEach((row) => {
+      byId.set(String(row.id), row as Record<string, unknown>);
+    });
+
+    const hydrated = await hydrateMessages([...byId.values()]);
+    hydrated.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    setMessages(hydrated);
+    setHasOlderMessages((beforeResult.data ?? []).length === 30);
+  }, [hydrateMessages]);
+
+  const markRead = useCallback(async (
+    conversationId: string,
+    currentUserId: string,
+    publishReadReceipt: boolean,
+  ) => {
     const now = new Date().toISOString();
+    const update: { last_seen_at: string; last_read_at?: string } = { last_seen_at: now };
+    if (publishReadReceipt) update.last_read_at = now;
+
     const { error: readError } = await supabase
       .from("conversation_members")
-      .update({ last_read_at: now })
+      .update(update)
       .eq("conversation_id", conversationId)
       .eq("user_id", currentUserId);
 
     if (!readError) {
       setMembers((current) => current.map((member) =>
-        member.user_id === currentUserId ? { ...member, last_read_at: now } : member,
+        member.user_id === currentUserId
+          ? { ...member, last_read_at: publishReadReceipt ? now : member.last_read_at }
+          : member,
       ));
       setConversations((current) => current.map((conversation) =>
         conversation.conversation_id === conversationId ? { ...conversation, unread_count: 0 } : conversation,
@@ -302,6 +357,22 @@ export default function ChatPage() {
   }, [theme]);
 
   useEffect(() => {
+    if (!settingsOpen) return;
+    void getDevicePushState().then(setPushState).catch(() => undefined);
+  }, [settingsOpen]);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setGlobalSearchOpen(true);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  useEffect(() => {
     let mounted = true;
 
     async function boot() {
@@ -319,18 +390,26 @@ export default function ChatPage() {
 
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
-          .select("id, username, display_name, bio, avatar_path, created_at")
+          .select("id, username, display_name, bio, avatar_path, created_at, dm_privacy, show_read_receipts, show_online_status, notifications_enabled, notification_preview")
           .eq("id", currentUser.id)
           .single();
         if (profileError) throw profileError;
         if (!mounted) return;
 
-        setMe(profile as Profile);
-        await Promise.all([
+        setMe(profile as MyProfile);
+        const [nextConversations] = await Promise.all([
           loadConversations(),
           loadBlockedUsers(currentUser.id),
           loadAdminState(),
         ]);
+
+        const linkedConversation = new URLSearchParams(window.location.search).get("conversation");
+        if (linkedConversation && nextConversations.some((conversation) => conversation.conversation_id === linkedConversation)) {
+          setActiveConversationId(linkedConversation);
+          setMobileChatOpen(true);
+        }
+
+        void getDevicePushState().then(setPushState).catch(() => undefined);
       } catch (bootError) {
         setError(bootError instanceof Error ? bootError.message : "Could not load Pulse Chat.");
       }
@@ -381,7 +460,7 @@ export default function ChatPage() {
         .on("presence", { event: "join" }, sync)
         .on("presence", { event: "leave" }, sync)
         .subscribe(async (status) => {
-          if (status === "SUBSCRIBED" && channel) {
+          if (status === "SUBSCRIBED" && channel && currentMe.show_online_status) {
             await channel.track({
               user_id: currentUser.id,
               username: currentMe.username,
@@ -407,7 +486,7 @@ export default function ChatPage() {
   }, [me, user]);
 
   useEffect(() => {
-    if (!activeConversationId || !user) {
+    if (!activeConversationId || !user || !me) {
       setMessages([]);
       setMembers([]);
       setTypingUserIds(new Set());
@@ -416,6 +495,7 @@ export default function ChatPage() {
 
     const conversationId = activeConversationId;
     const currentUser = user;
+    const publishReadReceipt = me.show_read_receipts;
     let cancelled = false;
     let channel: RealtimeChannel | null = null;
     activeChannelReadyRef.current = false;
@@ -424,11 +504,31 @@ export default function ChatPage() {
 
     async function refreshConversation() {
       try {
+        const jumpTarget = pendingJumpRef.current?.conversation_id === conversationId
+          ? pendingJumpRef.current
+          : null;
+
         await Promise.all([
-          loadMessages(conversationId),
+          jumpTarget
+            ? loadMessageContext(conversationId, jumpTarget.created_at)
+            : loadMessages(conversationId),
           loadMembers(conversationId),
         ]);
-        await markRead(conversationId, currentUser.id);
+        await markRead(conversationId, currentUser.id, publishReadReceipt);
+
+        if (jumpTarget && !cancelled) {
+          pendingJumpRef.current = null;
+          setHighlightMessageId(jumpTarget.message_id);
+          window.requestAnimationFrame(() => {
+            window.requestAnimationFrame(() => {
+              document.getElementById(`message-${jumpTarget.message_id}`)?.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+              });
+            });
+          });
+          window.setTimeout(() => setHighlightMessageId((current) => current === jumpTarget.message_id ? null : current), 3200);
+        }
       } catch (refreshError) {
         if (!cancelled) setError(refreshError instanceof Error ? refreshError.message : "Could not load the conversation.");
       }
@@ -459,7 +559,7 @@ export default function ChatPage() {
           table: "messages",
           filter: `conversation_id=eq.${conversationId}`,
         }, () => {
-          void loadMessages(conversationId).then(() => markRead(conversationId, currentUser.id));
+          void loadMessages(conversationId).then(() => markRead(conversationId, currentUser.id, publishReadReceipt));
           void loadConversations();
         })
         .on("postgres_changes", {
@@ -507,11 +607,11 @@ export default function ChatPage() {
       if (channel) void supabase.removeChannel(channel);
       if (activeChannelRef.current === channel) activeChannelRef.current = null;
     };
-  }, [activeConversationId, loadConversations, loadMembers, loadMessages, markRead, user]);
+  }, [activeConversationId, loadConversations, loadMembers, loadMessageContext, loadMessages, markRead, me, user]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length, typingNames.length]);
+    if (!highlightMessageId) messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [highlightMessageId, messages.length, typingNames.length]);
 
   useEffect(() => {
     const clean = search.trim();
@@ -527,7 +627,7 @@ export default function ChatPage() {
       const { data, error: searchError } = await supabase
         .from("profiles")
         .select("id, username, display_name, bio, avatar_path, created_at")
-        .ilike("username", `%${clean}%`)
+        .or(`username.ilike.%${clean}%,display_name.ilike.%${clean}%`)
         .neq("id", currentUser.id)
         .limit(10);
 
@@ -607,6 +707,30 @@ export default function ChatPage() {
     setSelectedFile(file);
   }
 
+  async function sendPushForMessage(messageId: string) {
+    try {
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data.session?.access_token;
+      if (!accessToken) return;
+
+      const response = await fetch("/api/push/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ messageId }),
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+        console.warn("Pulse notification delivery skipped:", payload?.error ?? response.statusText);
+      }
+    } catch (pushError) {
+      console.warn("Pulse notification delivery failed:", pushError);
+    }
+  }
+
   async function sendMessage(event: FormEvent) {
     event.preventDefault();
     if (!user || !activeConversationId || activeBlocked || sending) return;
@@ -660,7 +784,12 @@ export default function ChatPage() {
       setDraft("");
       setSelectedFile(null);
       setReplyTo(null);
-      await Promise.all([loadMessages(conversationId), loadConversations(), markRead(conversationId, currentUser.id)]);
+      await Promise.all([
+        loadMessages(conversationId),
+        loadConversations(),
+        markRead(conversationId, currentUser.id, me?.show_read_receipts ?? true),
+      ]);
+      void sendPushForMessage(String(inserted.id));
     } catch (sendError) {
       if (uploadedPath) void supabase.storage.from("attachments").remove([uploadedPath]);
       setError(sendError instanceof Error ? sendError.message : "Could not send the message.");
@@ -726,6 +855,39 @@ export default function ChatPage() {
     }
   }
 
+  function openConversationFromSearch(conversationId: string) {
+    setGlobalSearchOpen(false);
+    setActiveConversationId(conversationId);
+    setMobileChatOpen(true);
+  }
+
+  async function openMessageFromSearch(result: MessageSearchResult) {
+    setGlobalSearchOpen(false);
+    setMobileChatOpen(true);
+
+    if (activeConversationId !== result.conversation_id) {
+      pendingJumpRef.current = result;
+      setActiveConversationId(result.conversation_id);
+      return;
+    }
+
+    try {
+      await loadMessageContext(result.conversation_id, result.created_at);
+      setHighlightMessageId(result.message_id);
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          document.getElementById(`message-${result.message_id}`)?.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        });
+      });
+      window.setTimeout(() => setHighlightMessageId((current) => current === result.message_id ? null : current), 3200);
+    } catch (searchError) {
+      setError(searchError instanceof Error ? searchError.message : "Could not open that message.");
+    }
+  }
+
   async function saveProfile(values: { username: string; displayName: string; bio: string; avatarFile: File | null }) {
     if (!user || !me) return;
     let avatarPath = me.avatar_path;
@@ -749,13 +911,75 @@ export default function ChatPage() {
         avatar_path: avatarPath,
       })
       .eq("id", user.id)
-      .select("id, username, display_name, bio, avatar_path, created_at")
+      .select("id, username, display_name, bio, avatar_path, created_at, dm_privacy, show_read_receipts, show_online_status, notifications_enabled, notification_preview")
       .single();
     if (profileError) throw profileError;
 
     await supabase.auth.updateUser({ data: { username: values.username, display_name: values.displayName } });
-    setMe(data as Profile);
+    setMe(data as MyProfile);
     await loadConversations();
+  }
+
+  async function savePreferences(values: {
+    dmPrivacy: MyProfile["dm_privacy"];
+    showReadReceipts: boolean;
+    showOnlineStatus: boolean;
+    notificationsEnabled: boolean;
+    notificationPreview: boolean;
+  }) {
+    if (!user || !me) return;
+
+    if (me.show_read_receipts && !values.showReadReceipts) {
+      const { error: clearReceiptError } = await supabase
+        .from("conversation_members")
+        .update({ last_read_at: null })
+        .eq("user_id", user.id);
+      if (clearReceiptError) throw clearReceiptError;
+    }
+
+    const { data, error: preferenceError } = await supabase
+      .from("profiles")
+      .update({
+        dm_privacy: values.dmPrivacy,
+        show_read_receipts: values.showReadReceipts,
+        show_online_status: values.showOnlineStatus,
+        notifications_enabled: values.notificationsEnabled,
+        notification_preview: values.notificationPreview,
+      })
+      .eq("id", user.id)
+      .select("id, username, display_name, bio, avatar_path, created_at, dm_privacy, show_read_receipts, show_online_status, notifications_enabled, notification_preview")
+      .single();
+
+    if (preferenceError) throw preferenceError;
+    setMe(data as MyProfile);
+
+    if (activeConversationId) {
+      await loadMembers(activeConversationId);
+    }
+  }
+
+  async function enableCurrentDevicePush() {
+    if (!user) return;
+    const next = await enableDevicePush(user.id);
+    setPushState(next);
+  }
+
+  async function disableCurrentDevicePush() {
+    if (!user) return;
+    const next = await disableDevicePush(user.id);
+    setPushState(next);
+  }
+
+  async function toggleConversationMute() {
+    if (!user || !activeConversationId) return;
+    const mutedUntil = activeMuted ? null : "9999-12-31T23:59:59.000Z";
+    const { error: muteError } = await supabase
+      .from("conversation_members")
+      .update({ muted_until: mutedUntil })
+      .eq("conversation_id", activeConversationId)
+      .eq("user_id", user.id);
+    if (muteError) throw muteError;
+    await loadMembers(activeConversationId);
   }
 
   async function toggleBlock() {
@@ -868,6 +1092,14 @@ export default function ChatPage() {
 
   async function signOut() {
     if (presenceChannelRef.current) await presenceChannelRef.current.untrack();
+    if (user) {
+      try {
+        const next = await disableDevicePush(user.id);
+        setPushState(next);
+      } catch (pushError) {
+        console.warn("Could not remove this device push subscription during sign out:", pushError);
+      }
+    }
     await supabase.auth.signOut();
     router.replace("/");
   }
@@ -885,13 +1117,14 @@ export default function ChatPage() {
             <div><strong>Pulse Chat</strong><span>@{me.username}</span></div>
           </div>
           <div className="header-actions">
+            <button type="button" className="icon-button" onClick={() => setGlobalSearchOpen(true)} title="Search chats and messages" aria-label="Search chats and messages">⌕</button>
             <button type="button" className="icon-button" onClick={() => setNewGroupOpen(true)} title="New group" aria-label="New group">＋</button>
             <button type="button" className="icon-button" onClick={() => setSettingsOpen(true)} title="Settings" aria-label="Settings">⚙</button>
           </div>
         </header>
 
         <div className="search-box-v5">
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search usernames…" aria-label="Search users" />
+          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Find people…" aria-label="Find people" />
           {(searching || searchResults.length > 0) && (
             <div className="people-results sidebar-search-results">
               {searching && <p className="search-status">Searching…</p>}
@@ -936,7 +1169,7 @@ export default function ChatPage() {
         </nav>
 
         <footer className="sidebar-profile-v5">
-          <Avatar name={me.display_name || me.username} path={me.avatar_path} online />
+          <Avatar name={me.display_name || me.username} path={me.avatar_path} online={me.show_online_status} />
           <span><strong>{me.display_name}</strong><small>@{me.username}</small></span>
           <button type="button" className="icon-button" onClick={() => setSettingsOpen(true)} aria-label="Open settings">⚙</button>
         </footer>
@@ -964,6 +1197,7 @@ export default function ChatPage() {
                         : "Offline"}
                 </span>
               </button>
+              <button type="button" className="icon-button header-search-button" onClick={() => setGlobalSearchOpen(true)} aria-label="Search chats and messages">⌕</button>
               <button type="button" className="icon-button header-info-button" onClick={() => setInfoOpen(true)} aria-label="Conversation details">ⓘ</button>
             </header>
 
@@ -989,6 +1223,7 @@ export default function ChatPage() {
                   currentUserId={user.id}
                   replyMessage={message.reply_to ? messages.find((candidate) => candidate.id === message.reply_to) : undefined}
                   members={members}
+                  highlighted={highlightMessageId === message.id}
                   onReply={setReplyTo}
                   onEdit={(target) => void editMessage(target)}
                   onDelete={(target) => void deleteMessage(target)}
@@ -1070,9 +1305,13 @@ export default function ChatPage() {
         blockedProfiles={blockedProfiles}
         isAdmin={isAdmin}
         reports={reports}
+        pushState={pushState}
         onClose={() => setSettingsOpen(false)}
         onThemeChange={setTheme}
         onSaveProfile={saveProfile}
+        onSavePreferences={savePreferences}
+        onEnableDevicePush={enableCurrentDevicePush}
+        onDisableDevicePush={disableCurrentDevicePush}
         onUnblock={unblockUser}
         onUpdateReport={updateReport}
         onSignOut={signOut}
@@ -1093,8 +1332,10 @@ export default function ChatPage() {
           members={members}
           currentUserId={user.id}
           blocked={activeBlocked}
+          muted={activeMuted}
           onClose={() => setInfoOpen(false)}
           onToggleBlock={toggleBlock}
+          onToggleMute={toggleConversationMute}
           onReportUser={() => setReportTarget({
             label: activeConversation.title,
             userId: activeConversation.other_user_id,
@@ -1105,6 +1346,14 @@ export default function ChatPage() {
           onRemoveMember={removeGroupMember}
         />
       )}
+
+      <SearchModal
+        open={globalSearchOpen}
+        conversations={conversations}
+        onClose={() => setGlobalSearchOpen(false)}
+        onOpenConversation={openConversationFromSearch}
+        onOpenMessage={(result) => void openMessageFromSearch(result)}
+      />
 
       <ReportModal
         open={Boolean(reportTarget)}

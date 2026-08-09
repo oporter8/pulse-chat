@@ -11,6 +11,7 @@ type MessageItemProps = {
   currentUserId: string;
   replyMessage?: Message;
   members: ConversationMember[];
+  highlighted?: boolean;
   onReply: (message: Message) => void;
   onEdit: (message: Message) => void;
   onDelete: (message: Message) => void;
@@ -23,6 +24,7 @@ export function MessageItem({
   currentUserId,
   replyMessage,
   members,
+  highlighted = false,
   onReply,
   onEdit,
   onDelete,
@@ -31,9 +33,10 @@ export function MessageItem({
 }: MessageItemProps) {
   const mine = message.sender_id === currentUserId;
   const senderName = message.sender?.display_name || message.sender?.username || "User";
-  const otherReaders = members.filter(
-    (member) => member.user_id !== currentUserId && new Date(member.last_read_at).getTime() >= new Date(message.created_at).getTime(),
-  );
+  const otherReaders = members.filter((member) => {
+    if (member.user_id === currentUserId || !member.last_read_at) return false;
+    return new Date(member.last_read_at).getTime() >= new Date(message.created_at).getTime();
+  });
 
   const reactionGroups = message.reactions.reduce<Record<string, { count: number; mine: boolean }>>((groups, reaction) => {
     const current = groups[reaction.emoji] ?? { count: 0, mine: false };
@@ -44,7 +47,7 @@ export function MessageItem({
   }, {});
 
   return (
-    <article className={`message-row-v5 ${mine ? "mine" : ""} ${message.deleted_at ? "deleted" : ""}`}>
+    <article className={`message-row-v5 ${mine ? "mine" : ""} ${message.deleted_at ? "deleted" : ""} ${highlighted ? "search-highlight-v6" : ""}`}>
       {!mine && (
         <Avatar name={senderName} path={message.sender?.avatar_path} size="small" />
       )}

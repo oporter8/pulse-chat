@@ -1,4 +1,5 @@
 export type Theme = "system" | "dark" | "light";
+export type DmPrivacy = "everyone" | "mutual_groups" | "nobody";
 
 export type Profile = {
   id: string;
@@ -7,6 +8,14 @@ export type Profile = {
   bio: string;
   avatar_path: string | null;
   created_at: string;
+};
+
+export type MyProfile = Profile & {
+  dm_privacy: DmPrivacy;
+  show_read_receipts: boolean;
+  show_online_status: boolean;
+  notifications_enabled: boolean;
+  notification_preview: boolean;
 };
 
 export type Conversation = {
@@ -26,7 +35,8 @@ export type ConversationMember = {
   user_id: string;
   role: "owner" | "admin" | "member";
   joined_at: string;
-  last_read_at: string;
+  last_read_at: string | null;
+  muted_until: string | null;
   profile: Profile;
 };
 
@@ -61,6 +71,17 @@ export type Message = {
   sender?: Profile;
   attachments: Attachment[];
   reactions: Reaction[];
+};
+
+export type MessageSearchResult = {
+  message_id: string;
+  conversation_id: string;
+  conversation_kind: "dm" | "group";
+  conversation_title: string;
+  sender_id: string;
+  sender_name: string;
+  body: string;
+  created_at: string;
 };
 
 export type Report = {

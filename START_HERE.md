@@ -1,106 +1,56 @@
-# Pulse Chat v5 — FULL REPLACEMENT
+# Pulse Chat v6 — START HERE
 
-This folder is meant to replace the contents of your current Pulse Chat project.
+This is the complete replacement project.
 
-## IMPORTANT FIRST
-Before replacing your old project, copy your existing `.env.local` somewhere safe.
-This ZIP intentionally does NOT contain your real Supabase credentials.
+## 1. Preserve your current environment file
 
-After replacing the project files, put your `.env.local` back in the project root.
+Before replacing your existing files, keep a copy of `.env.local`. Real credentials are intentionally not included here.
 
-It must contain:
+## 2. Upgrade the database
 
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
+Because your existing Pulse database is already on v5, run this in Supabase SQL Editor:
 
-## EXISTING SUPABASE PROJECT
-Because you already have Pulse Chat accounts/messages, use ONLY:
-
-`supabase/v5_migration.sql`
-
-Run the entire file in Supabase Dashboard -> SQL Editor.
-
-The migration included here already drops the old `get_my_conversations()` function
-before recreating it with the v5 return type.
+`supabase/v6_migration.sql`
 
 Then run:
 
 `supabase/realtime.sql`
 
-DO NOT run `supabase/fresh_install.sql` on your existing database.
-That file is only for a brand-new Supabase project.
+Do not run `fresh_install.sql` on the existing database.
 
-## LOCAL INSTALL / TEST
-
-From Terminal inside this folder:
+## 3. Install and configure push
 
 ```bash
 npm install
+npm run generate:vapid
+```
+
+Add the generated VAPID values plus `SUPABASE_SECRET_KEY` to `.env.local` and Vercel. See `V6_SETUP.md` for the exact variable names and security notes.
+
+## 4. Build before deploying
+
+```bash
 npm run build
 ```
 
-Do not deploy until `npm run build` succeeds.
-
-Then test locally if you want:
-
-```bash
-npm run dev
-```
-
-## GITHUB / VERCEL
-
-If this folder is replacing your existing Git-tracked project, keep the existing
-`.git` directory when replacing files.
-
-Then:
+Only after the build succeeds:
 
 ```bash
 git add .
-git commit -m "Upgrade Pulse Chat to v5"
+git commit -m "Upgrade Pulse Chat to v6"
 git push origin main
 ```
 
-Vercel should redeploy automatically.
+## v6 highlights
 
-## INCLUDED V5 FEATURES
-
-- Responsive phone / tablet / laptop / desktop chat layout
-- PWA / home-screen support
-- Profile avatars
-- Display names and bios
-- Direct messages
-- Group chats
-- Group member management
-- Typing status
-- Online presence
-- Replies
-- Edit and delete messages
-- Emoji reactions
-- Read receipts / unread state
-- Image and file attachments
-- Blocking
-- Reporting
-- Moderator/report tooling
-- Expanded settings
-- Light / dark / system themes
-- Supabase RLS / storage / realtime migration
-
-## FILES THAT SHOULD EXIST
-
-- app/page.tsx
-- app/chat/page.tsx
-- app/layout.tsx
-- app/globals.css
-- app/manifest.ts
-- app/pwa-register.tsx
-- components/chat/*
-- lib/supabase.ts
-- lib/chat-types.ts
-- lib/chat-utils.ts
-- public/sw.js
-- public/icons/*
-- supabase/v5_migration.sql
-- supabase/realtime.sql
-- supabase/fresh_install.sql
-- package.json
-- tsconfig.json
+- Password reset email + reset-password screen
+- Real background Web Push notifications
+- Per-device notification enrollment
+- Global notification and preview preferences
+- Per-chat mute
+- Global conversation/message search with jump-to-message
+- New-DM privacy controls
+- Read-receipt privacy without breaking unread counts
+- Online-status privacy
+- Push replay protection and stale-subscription cleanup
+- All previous v5 messaging/group/moderation/PWA/device-responsive features

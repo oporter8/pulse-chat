@@ -11,8 +11,10 @@ type ConversationInfoModalProps = {
   members: ConversationMember[];
   currentUserId: string;
   blocked: boolean;
+  muted: boolean;
   onClose: () => void;
   onToggleBlock: () => Promise<void>;
+  onToggleMute: () => Promise<void>;
   onReportUser: () => void;
   onUpdateGroup: (name: string, avatarFile: File | null) => Promise<void>;
   onAddMember: (userId: string) => Promise<void>;
@@ -25,8 +27,10 @@ export function ConversationInfoModal({
   members,
   currentUserId,
   blocked,
+  muted,
   onClose,
   onToggleBlock,
+  onToggleMute,
   onReportUser,
   onUpdateGroup,
   onAddMember,
@@ -102,6 +106,16 @@ export function ConversationInfoModal({
     setAvatarFile(file);
   }
 
+  async function toggleMute() {
+    setMessage("");
+    try {
+      await onToggleMute();
+      setMessage(muted ? "Conversation notifications turned on." : "Conversation muted until you turn notifications back on.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not change notification settings.");
+    }
+  }
+
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => {
       if (event.currentTarget === event.target) onClose();
@@ -113,6 +127,16 @@ export function ConversationInfoModal({
             <p>{conversation.kind === "group" ? `${members.length} members` : "Direct message"}</p>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close">×</button>
+        </div>
+
+        <div className="conversation-notification-row">
+          <span>
+            <strong>Notifications</strong>
+            <small>{muted ? "Muted for this conversation" : "On for this conversation"}</small>
+          </span>
+          <button type="button" className="secondary-button" onClick={() => void toggleMute()}>
+            {muted ? "Unmute" : "Mute"}
+          </button>
         </div>
 
         {conversation.kind === "dm" ? (
@@ -192,9 +216,10 @@ export function ConversationInfoModal({
                 Leave group
               </button>
             </div>
-            {message && <p className="inline-status">{message}</p>}
           </div>
         )}
+
+        {message && <p className="inline-status conversation-info-status" aria-live="polite">{message}</p>}
       </section>
     </div>
   );

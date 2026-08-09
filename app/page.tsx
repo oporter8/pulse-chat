@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-type Mode = "login" | "signup";
+type Mode = "login" | "signup" | "forgot";
 
 export default function AuthPage() {
   const router = useRouter();
@@ -28,6 +28,22 @@ export default function AuthPage() {
     setLoading(true);
 
     try {
+      if (mode === "forgot") {
+        const cleanEmail = email.trim();
+        if (!cleanEmail) {
+          setMessage("Enter the email address on your Pulse account.");
+          return;
+        }
+
+        const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (error) throw error;
+
+        setMessage("Password reset email sent. Open the link in that email to choose a new password.");
+        return;
+      }
+
       if (mode === "signup") {
         const cleanUsername = username.trim().toLowerCase();
         const cleanDisplayName = displayName.trim() || cleanUsername;
@@ -41,21 +57,21 @@ export default function AuthPage() {
           email: email.trim(),
           password,
           options: {
-            data: { username: cleanUsername, display_name: cleanDisplayName }
-          }
+            data: { username: cleanUsername, display_name: cleanDisplayName },
+          },
         });
 
         if (error) throw error;
 
         setMessage(
-          "Account created. If email confirmation is enabled in Supabase, check your inbox before signing in."
+          "Account created. If email confirmation is enabled in Supabase, check your inbox before signing in.",
         );
         setMode("login");
         setPassword("");
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
-          password
+          password,
         });
 
         if (error) throw error;
@@ -79,28 +95,45 @@ export default function AuthPage() {
           </div>
         </div>
 
-        <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
-          <button
-            type="button"
-            className={mode === "login" ? "active" : ""}
-            onClick={() => {
-              setMode("login");
-              setMessage("");
-            }}
-          >
-            Log in
-          </button>
-          <button
-            type="button"
-            className={mode === "signup" ? "active" : ""}
-            onClick={() => {
-              setMode("signup");
-              setMessage("");
-            }}
-          >
-            Sign up
-          </button>
-        </div>
+        {mode !== "forgot" ? (
+          <div className="auth-tabs" role="tablist" aria-label="Authentication mode">
+            <button
+              type="button"
+              className={mode === "login" ? "active" : ""}
+              onClick={() => {
+                setMode("login");
+                setMessage("");
+              }}
+            >
+              Log in
+            </button>
+            <button
+              type="button"
+              className={mode === "signup" ? "active" : ""}
+              onClick={() => {
+                setMode("signup");
+                setMessage("");
+              }}
+            >
+              Sign up
+            </button>
+          </div>
+        ) : (
+          <div className="auth-recovery-heading">
+            <button
+              type="button"
+              className="text-button"
+              onClick={() => {
+                setMode("login");
+                setMessage("");
+              }}
+            >
+              ← Back to login
+            </button>
+            <h2>Reset your password</h2>
+            <p>We’ll email you a secure recovery link.</p>
+          </div>
+        )}
 
         <form className="auth-form" onSubmit={submit}>
           {mode === "signup" && (
@@ -141,21 +174,43 @@ export default function AuthPage() {
             />
           </label>
 
-          <label>
-            Password
-            <input
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="At least 6 characters"
-              autoComplete={mode === "login" ? "current-password" : "new-password"}
-              minLength={6}
-              required
-            />
-          </label>
+          {mode !== "forgot" && (
+            <label>
+              Password
+              <input
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="At least 6 characters"
+                autoComplete={mode === "login" ? "current-password" : "new-password"}
+                minLength={6}
+                required
+              />
+            </label>
+          )}
+
+          {mode === "login" && (
+            <button
+              type="button"
+              className="auth-forgot-button"
+              onClick={() => {
+                setMode("forgot");
+                setPassword("");
+                setMessage("");
+              }}
+            >
+              Forgot password?
+            </button>
+          )}
 
           <button className="primary-button" disabled={loading}>
-            {loading ? "Working..." : mode === "login" ? "Log in" : "Create account"}
+            {loading
+              ? "Working..."
+              : mode === "login"
+                ? "Log in"
+                : mode === "signup"
+                  ? "Create account"
+                  : "Send reset email"}
           </button>
         </form>
 
