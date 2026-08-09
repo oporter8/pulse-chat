@@ -1,28 +1,12 @@
-# Pulse Chat v8 — START HERE
+# Tiger Chat v9 — START HERE
 
-This is the full replacement project.
+The v9 paywall patch is installed in this project.
 
-## Existing Pulse v7 install
+1. Keep your existing `.env.local`.
+2. Add the Cash App Stripe keys plus `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET`, and `PAYPAL_ENV` locally and in Vercel.
+3. Run `supabase/v9_migration.sql` once in Supabase SQL Editor.
+4. Configure the Stripe webhook for Cash App at `https://thefhsnews.com/api/billing/webhook`; PayPal/Venmo use server-side capture routes.
+5. Run `npm install` and `npm run build`.
+6. Read `V9_SETUP.md` for testing and admin free-access controls.
 
-1. Save your current `.env.local` somewhere safe.
-2. Replace the project files with this folder.
-3. Put `.env.local` back in the project root.
-4. Run `supabase/v8_migration.sql` once in the Supabase SQL Editor.
-5. Run:
-
-   ```bash
-   npm install
-   npm run build
-   ```
-
-6. If the build passes, commit and push:
-
-   ```bash
-   git add .
-   git commit -m "Upgrade Pulse Chat to v8"
-   git push origin main
-   ```
-
-Do not run `supabase/fresh_install.sql` on your existing database.
-
-Read `V8_SETUP.md` for the full feature list, environment variables, and deployment notes.
+Do not run `fresh_install.sql` over the existing database.

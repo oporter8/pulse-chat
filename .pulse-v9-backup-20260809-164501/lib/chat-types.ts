@@ -135,10 +135,6 @@ export type AdminUser = {
   last_sign_in_at: string | null;
   banned_until: string | null;
   is_admin: boolean;
-  has_access: boolean;
-  access_type: "admin" | "paid" | "comped" | null;
-  access_granted_at: string | null;
-  amount_paid_cents: number | null;
 };
 
 

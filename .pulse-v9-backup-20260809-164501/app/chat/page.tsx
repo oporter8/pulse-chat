@@ -594,18 +594,6 @@ export default function ChatPage() {
         }
 
         const currentUser = data.session.user;
-
-        // v9 paywall gate: verify paid/free/admin access before initializing chat.
-        const accessResponse = await fetch("/api/billing/access", {
-          cache: "no-store",
-          headers: { Authorization: `Bearer ${data.session.access_token}` },
-        });
-        const accessBody = (await accessResponse.json().catch(() => ({}))) as { hasAccess?: boolean; error?: string };
-        if (!accessResponse.ok) throw new Error(accessBody.error || "Could not verify Tiger Chat access.");
-        if (!accessBody.hasAccess) {
-          router.replace("/paywall");
-          return;
-        }
         await supabase.realtime.setAuth(data.session.access_token);
 
         const { data: profile, error: profileError } = await supabase

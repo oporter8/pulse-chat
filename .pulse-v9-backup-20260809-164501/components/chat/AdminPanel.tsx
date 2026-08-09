@@ -30,13 +30,6 @@ async function adminFetch(url: string, options?: RequestInit) {
   return body;
 }
 
-function accessLabel(user: AdminUser) {
-  if (user.access_type === "admin") return "Admin bypass";
-  if (user.access_type === "paid") return "Paid · $3";
-  if (user.access_type === "comped") return "Free access";
-  return "Payment required";
-}
-
 export function AdminPanel({ currentUserId, currentTag, onTagChanged }: AdminPanelProps) {
   const [tag, setTag] = useState(currentTag || "OWNER");
   const [query, setQuery] = useState("");
@@ -93,23 +86,6 @@ export function AdminPanel({ currentUserId, currentTag, onTagChanged }: AdminPan
     }
   }
 
-  async function setFreeAccess(userId: string, grant: boolean) {
-    setWorkingId(userId);
-    setMessage("");
-    try {
-      await adminFetch("/api/admin/users", {
-        method: "POST",
-        body: JSON.stringify({ userId, accessAction: grant ? "grant_free" : "remove_free" }),
-      });
-      await searchUsers();
-      setMessage(grant ? "Free access granted." : "Free access removed. The account will need to pay $3 to use chat.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Could not update access.");
-    } finally {
-      setWorkingId(null);
-    }
-  }
-
   return (
     <div className="admin-panel-v7">
       <section className="admin-card-v7">
@@ -124,7 +100,7 @@ export function AdminPanel({ currentUserId, currentTag, onTagChanged }: AdminPan
 
       <section className="admin-card-v7">
         <h3>User management</h3>
-        <p className="muted-copy">Search accounts, suspend users, or decide who can use Tiger Chat without paying.</p>
+        <p className="muted-copy">Search accounts and suspend or restore access.</p>
         <form className="admin-search-v7" onSubmit={searchUsers}>
           <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search username, display name, or email" />
           <button type="submit" className="secondary-button" disabled={loading}>{loading ? "Searching…" : "Search"}</button>
@@ -134,7 +110,7 @@ export function AdminPanel({ currentUserId, currentTag, onTagChanged }: AdminPan
           {users.map((adminUser) => {
             const banned = Boolean(adminUser.banned_until && new Date(adminUser.banned_until).getTime() > Date.now());
             return (
-              <article className="admin-user-row-v7 admin-user-row-v9" key={adminUser.id}>
+              <article className="admin-user-row-v7" key={adminUser.id}>
                 <Avatar name={adminUser.display_name || adminUser.username} path={adminUser.avatar_path} size="small" />
                 <div className="grow-copy">
                   <div className="admin-name-line-v7">
@@ -142,43 +118,19 @@ export function AdminPanel({ currentUserId, currentTag, onTagChanged }: AdminPan
                     {adminUser.admin_tag && <span className="admin-badge-v7">{adminUser.admin_tag}</span>}
                   </div>
                   <small>@{adminUser.username} · {adminUser.email}</small>
-                  <div className="admin-status-line-v9">
-                    <span className={`access-pill-v9 access-${adminUser.access_type ?? "required"}`}>{accessLabel(adminUser)}</span>
-                    <span className={banned ? "ban-pill-v9" : "active-pill-v9"}>
-                      {banned ? `Suspended until ${new Date(adminUser.banned_until!).toLocaleString()}` : "Account active"}
-                    </span>
-                  </div>
+                  <small>{banned ? `Suspended until ${new Date(adminUser.banned_until!).toLocaleString()}` : "Active"}</small>
                 </div>
-
                 {adminUser.id !== currentUserId && (
-                  <div className="admin-control-stack-v9">
-                    {!adminUser.is_admin && (
-                      <div className="admin-actions-v7 admin-access-actions-v9">
-                        {adminUser.access_type === "comped" ? (
-                          <button type="button" className="secondary-button" disabled={workingId === adminUser.id} onClick={() => void setFreeAccess(adminUser.id, false)}>
-                            Remove free access
-                          </button>
-                        ) : adminUser.access_type === "paid" ? (
-                          <span className="admin-paid-note-v9">Payment complete</span>
-                        ) : (
-                          <button type="button" className="primary-button" disabled={workingId === adminUser.id} onClick={() => void setFreeAccess(adminUser.id, true)}>
-                            Grant free access
-                          </button>
-                        )}
-                      </div>
+                  <div className="admin-actions-v7">
+                    {banned ? (
+                      <button type="button" className="secondary-button" disabled={workingId === adminUser.id} onClick={() => void setBan(adminUser.id, "none")}>Unban</button>
+                    ) : (
+                      <>
+                        <button type="button" className="secondary-button" disabled={workingId === adminUser.id} onClick={() => void setBan(adminUser.id, "24h")}>24h</button>
+                        <button type="button" className="secondary-button" disabled={workingId === adminUser.id} onClick={() => void setBan(adminUser.id, "168h")}>7d</button>
+                        <button type="button" className="danger-button secondary-danger" disabled={workingId === adminUser.id} onClick={() => void setBan(adminUser.id, "876000h")}>Ban</button>
+                      </>
                     )}
-
-                    <div className="admin-actions-v7">
-                      {banned ? (
-                        <button type="button" className="secondary-button" disabled={workingId === adminUser.id} onClick={() => void setBan(adminUser.id, "none")}>Unban</button>
-                      ) : (
-                        <>
-                          <button type="button" className="secondary-button" disabled={workingId === adminUser.id} onClick={() => void setBan(adminUser.id, "24h")}>24h</button>
-                          <button type="button" className="secondary-button" disabled={workingId === adminUser.id} onClick={() => void setBan(adminUser.id, "168h")}>7d</button>
-                          <button type="button" className="danger-button secondary-danger" disabled={workingId === adminUser.id} onClick={() => void setBan(adminUser.id, "876000h")}>Ban</button>
-                        </>
-                      )}
-                    </div>
                   </div>
                 )}
               </article>

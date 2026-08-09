@@ -43,40 +43,20 @@ export async function GET(request: Request) {
     const authUsers = authData.users;
     const ids = authUsers.map((user) => user.id);
 
-    let profiles: Array<Record<string, any>> = [];
-    let adminRows: Array<Record<string, any>> = [];
-    let accessRows: Array<Record<string, any>> = [];
+    const { data: profiles } = ids.length
+      ? await auth.admin.from("profiles").select("id, username, display_name, avatar_path, admin_tag, created_at").in("id", ids)
+      : { data: [] as Array<Record<string, unknown>> };
 
-    if (ids.length) {
-      const profileResult = await auth.admin
-        .from("profiles")
-        .select("id, username, display_name, avatar_path, admin_tag, status_text, last_active_at, created_at")
-        .in("id", ids);
-      if (profileResult.error) throw profileResult.error;
-      profiles = profileResult.data ?? [];
-
-      const adminResult = await auth.admin.from("app_admins").select("user_id").in("user_id", ids);
-      if (adminResult.error) throw adminResult.error;
-      adminRows = adminResult.data ?? [];
-
-      const accessResult = await auth.admin
-        .from("app_access")
-        .select("user_id,access_type,granted_at,amount_paid_cents,revoked_at")
-        .in("user_id", ids);
-      if (accessResult.error) throw accessResult.error;
-      accessRows = accessResult.data ?? [];
-    }
+    const { data: adminRows } = ids.length
+      ? await auth.admin.from("app_admins").select("user_id").in("user_id", ids)
+      : { data: [] as Array<Record<string, unknown>> };
 
     const profileById = new Map((profiles ?? []).map((profile: any) => [profile.id, profile]));
     const adminIds = new Set((adminRows ?? []).map((row: any) => row.user_id));
-    const accessById = new Map((accessRows ?? []).map((row: any) => [row.user_id, row]));
 
     const users = authUsers
       .map((user) => {
         const profile: any = profileById.get(user.id);
-        const access: any = accessById.get(user.id);
-        const isAdmin = adminIds.has(user.id);
-        const activeGrant = Boolean(access && !access.revoked_at);
         return {
           id: user.id,
           email: user.email ?? "",
@@ -84,16 +64,10 @@ export async function GET(request: Request) {
           display_name: profile?.display_name ?? profile?.username ?? "User",
           avatar_path: profile?.avatar_path ?? null,
           admin_tag: profile?.admin_tag ?? null,
-          status_text: profile?.status_text ?? "",
-          last_active_at: profile?.last_active_at ?? null,
           created_at: profile?.created_at ?? user.created_at,
           last_sign_in_at: user.last_sign_in_at ?? null,
           banned_until: user.banned_until ?? null,
-          is_admin: isAdmin,
-          has_access: isAdmin || activeGrant,
-          access_type: isAdmin ? "admin" : activeGrant ? access?.access_type ?? null : null,
-          access_granted_at: activeGrant ? access?.granted_at ?? null : null,
-          amount_paid_cents: activeGrant && typeof access?.amount_paid_cents === "number" ? access.amount_paid_cents : null,
+          is_admin: adminIds.has(user.id),
         };
       })
       .filter((user) => {
@@ -114,74 +88,21 @@ export async function POST(request: Request) {
     const auth = await authorize(request);
     if (!auth) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-    const body = (await request.json().catch(() => null)) as {
-      userId?: unknown;
-      banDuration?: unknown;
-      accessAction?: unknown;
-    } | null;
+    const body = (await request.json().catch(() => null)) as { userId?: unknown; banDuration?: unknown } | null;
     const userId = typeof body?.userId === "string" ? body.userId : "";
     const banDuration = typeof body?.banDuration === "string" ? body.banDuration : "";
-    const accessAction = typeof body?.accessAction === "string" ? body.accessAction : "";
 
     if (!/^[0-9a-f-]{36}$/i.test(userId)) return Response.json({ error: "Invalid user id." }, { status: 400 });
-
-    if (accessAction) {
-      if (!/^(grant_free|remove_free)$/.test(accessAction)) {
-        return Response.json({ error: "Invalid access action." }, { status: 400 });
-      }
-
-      const { data: targetAdmin } = await auth.admin.from("app_admins").select("user_id").eq("user_id", userId).maybeSingle();
-      if (targetAdmin) return Response.json({ ok: true, accessType: "admin" });
-
-      const { data: currentAccess, error: accessReadError } = await auth.admin
-        .from("app_access")
-        .select("access_type,revoked_at")
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (accessReadError) throw accessReadError;
-
-      if (accessAction === "grant_free") {
-        if (currentAccess?.access_type === "paid" && !currentAccess.revoked_at) {
-          return Response.json({ ok: true, accessType: "paid" });
-        }
-        const now = new Date().toISOString();
-        const { error } = await auth.admin.from("app_access").upsert({
-          user_id: userId,
-          access_type: "comped",
-          granted_at: now,
-          granted_by: auth.user.id,
-          stripe_checkout_session_id: null,
-          stripe_payment_intent_id: null,
-          amount_paid_cents: null,
-          revoked_at: null,
-          updated_at: now,
-        }, { onConflict: "user_id" });
-        if (error) throw error;
-        return Response.json({ ok: true, accessType: "comped" });
-      }
-
-      if (currentAccess?.access_type === "paid" && !currentAccess.revoked_at) {
-        return Response.json({ error: "This account already paid. Free access cannot replace or remove a paid grant." }, { status: 409 });
-      }
-
-      if (currentAccess?.access_type === "comped" && !currentAccess.revoked_at) {
-        const { error } = await auth.admin.from("app_access").update({
-          revoked_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        }).eq("user_id", userId).eq("access_type", "comped");
-        if (error) throw error;
-      }
-      return Response.json({ ok: true, accessType: null });
-    }
-
-    if (!/^(none|24h|168h|876000h)$/.test(banDuration)) {
-      return Response.json({ error: "Invalid suspension duration." }, { status: 400 });
-    }
+    if (!/^(none|24h|168h|876000h)$/.test(banDuration)) return Response.json({ error: "Invalid suspension duration." }, { status: 400 });
     if (userId === auth.user.id) return Response.json({ error: "You cannot suspend your own admin account." }, { status: 400 });
 
     const { error } = await auth.admin.auth.admin.updateUserById(userId, { ban_duration: banDuration });
     if (error) throw error;
 
+    // Supabase bans stop new/refreshing sessions, but an already-issued access
+    // token can remain valid until its JWT expires. Pulse also revokes every
+    // app-level device session for a newly suspended account so the client-side
+    // heartbeat forces currently-open Pulse sessions out quickly.
     if (banDuration !== "none") {
       const { error: deviceError } = await auth.admin
         .from("device_sessions")
