@@ -151,6 +151,30 @@ export default function ChatPage() {
     [activeConversationId, conversations],
   );
 
+  // v11 per-conversation appearance. Stored in Supabase; no paid API required.
+  useEffect(() => {
+    let cancelled = false;
+    async function applyConversationTheme() {
+      const root = document.documentElement;
+      if (!user?.id || !activeConversationId) {
+        delete root.dataset.tigerConversationTheme;
+        delete root.dataset.tigerConversationBubble;
+        return;
+      }
+      const { data } = await supabase
+        .from("conversation_preferences")
+        .select("theme,bubble_style,density,font_scale")
+        .eq("user_id", user.id)
+        .eq("conversation_id", activeConversationId)
+        .maybeSingle();
+      if (cancelled) return;
+      if (data?.theme && data.theme !== "default") root.dataset.tigerConversationTheme = data.theme;
+      else delete root.dataset.tigerConversationTheme;
+      if (data?.bubble_style && data.bubble_style !== "inherit") root.dataset.tigerBubble = data.bubble_style;
+    }
+    void applyConversationTheme();
+    return () => { cancelled = true; };
+  }, [activeConversationId, user?.id]);
 
   const focusActive = isFocusActive(focusSession, focusClock);
   const visibleConversations = useMemo(() =>
@@ -582,6 +606,10 @@ export default function ChatPage() {
     }
   }, []);
 
+  useEffect(() => {
+    const stored = window.localStorage.getItem("pulse-theme");
+    if (stored === "system" || stored === "dark" || stored === "light") setTheme(stored);
+  }, []);
 
   useEffect(() => {
     try {
@@ -590,6 +618,11 @@ export default function ChatPage() {
     } catch { setRecentReactions([]); }
   }, []);
 
+  useEffect(() => {
+    if (theme === "system") document.documentElement.removeAttribute("data-theme");
+    else document.documentElement.setAttribute("data-theme", theme);
+    window.localStorage.setItem("pulse-theme", theme);
+  }, [theme]);
 
   useEffect(() => {
     if (!settingsOpen) return;
@@ -1204,10 +1237,10 @@ export default function ChatPage() {
 
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-        console.warn("Tiger Chat notification delivery skipped:", payload?.error ?? response.statusText);
+        console.warn("Pulse notification delivery skipped:", payload?.error ?? response.statusText);
       }
     } catch (pushError) {
-      console.warn("Tiger Chat notification delivery failed:", pushError);
+      console.warn("Pulse notification delivery failed:", pushError);
     }
   }
 

@@ -5,7 +5,6 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { getV11ProfileStyle } from "@/lib/v11-profile";
 import { VenmoSupportCard } from "@/components/v12/VenmoSupportCard";
-import { TigerIcon } from "@/components/ui/TigerIcon";
 
 type Campaign = { title: string; description: string; goal_cents: number; raised_cents: number };
 
@@ -30,24 +29,24 @@ export default function SupportPage() {
 
   const percent = campaign && campaign.goal_cents > 0 ? Math.min(100, Math.round((campaign.raised_cents / campaign.goal_cents) * 100)) : 0;
 
-  return <main className="tiger-v12-page support-v12 pro-support-page">
-    <header className="v12-page-header pro-page-heading">
-      <div className="pro-heading-copy"><span className="pro-section-icon"><TigerIcon name="support" /></span><div><p className="v12-kicker">Support</p><h1>Keep Tiger Chat running</h1><p>Messaging stays free. Support is optional and helps cover operating costs.</p></div></div>
-      <Link className="secondary-button" href={signedIn ? "/home" : "/"}>Back</Link>
+  return <main className="tiger-v12-page support-v12">
+    <header className="v12-page-header">
+      <div><p className="v12-kicker">Support Center</p><h1>Keep Tiger Chat running</h1><p>Messaging stays free. Support is optional and helps with operating costs.</p></div>
+      <Link className="secondary-button" href={signedIn ? "/community" : "/"}>Back</Link>
     </header>
 
-    <section className="v12-support-summary pro-support-summary">
+    <section className="v12-support-summary">
       <div><p className="v12-kicker">Current goal</p><h2>{campaign?.title || "Support Tiger Chat"}</h2><p>{campaign?.description || "Help cover hosting, domains, and project operating costs."}</p></div>
       {campaign && <div className="v12-goal-meter"><div className="tiger-progress large"><span style={{ width: `${percent}%` }} /></div><div><strong>${(campaign.raised_cents / 100).toFixed(2)}</strong><span> of ${(campaign.goal_cents / 100).toFixed(2)} goal · {percent}%</span></div></div>}
-      {supporter && <div className="v12-supporter-thanks">Thank you for supporting Tiger Chat.</div>}
+      {supporter && <div className="v12-supporter-thanks">⭐ You’re marked as a Tiger Chat supporter.</div>}
     </section>
 
     <VenmoSupportCard url={venmoUrl} label={venmoLabel} />
 
-    <section className="v12-three-cards pro-info-list">
-      <article><h3>Free for everyone</h3><p>DMs, groups, search, reactions, polls, events, games, Focus Mode, school tools, and text/audio messaging remain available without contributing.</p></article>
-      <article><h3>Supporter recognition</h3><p>Verified supporters can receive a simple supporter badge and access to supporter community spaces.</p></article>
-      <article><h3>Manual verification</h3><p>The QR code does not automatically change an account. A staff member verifies a contribution in Moderation first.</p></article>
+    <section className="v12-three-cards">
+      <article><h3>Free for everyone</h3><p>DMs, groups, search, reactions, polls, events, games, themes, and text/audio messaging stay available without contributing.</p></article>
+      <article><h3>Supporter recognition</h3><p>Supporters can receive cosmetic badges, CSS profile frames, the supporter lounge, and other nonessential extras.</p></article>
+      <article><h3>Manual verification</h3><p>The QR code does not automatically mark an account as a supporter. An admin verifies a contribution in the Moderation Center first.</p></article>
     </section>
   </main>;
 }

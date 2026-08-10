@@ -114,6 +114,7 @@ export function MessageItem({
   return (
     <article
       className={`message-row-v5 ${mine ? "mine" : ""} ${message.deleted_at ? "deleted" : ""} ${highlighted ? "search-highlight-v6" : ""} ${message.local_status ? `local-${message.local_status}` : ""} ${effectClass}`}
+      data-sender-accent={senderStyle?.supporter ? senderStyle.accent_color : undefined}
       onTouchStart={(event) => { touchStart.current = event.touches[0]?.clientX ?? null; }}
       onTouchEnd={(event) => {
         const start = touchStart.current;
@@ -122,7 +123,7 @@ export function MessageItem({
         if (start != null && end != null && end - start > 70 && !message.deleted_at) { haptic(8); onReply(message); }
       }}
     >
-      {!mine && <button type="button" className="avatar-button-v8" onClick={() => onProfile(message)} aria-label={`View ${senderName} profile`}><Avatar name={senderName} path={null} size="small" /></button>}
+      {!mine && <button type="button" className={`avatar-button-v8 tiger-frame-${senderStyle?.profile_frame || "none"}`} onClick={() => onProfile(message)} aria-label={`View ${senderName} profile`}><Avatar name={senderName} path={null} size="small" /></button>}
 
       <div className="message-content-v5">
         <div className="message-meta-v5">

@@ -10,10 +10,10 @@ import { GroupToolsPanel } from "@/components/v11/GroupToolsPanel";
 import { SocialPanel } from "@/components/v11/SocialPanel";
 import { GamesPanel } from "@/components/v11/GamesPanel";
 import { FilesLinksPanel } from "@/components/v11/FilesLinksPanel";
+import { ThemeStudio } from "@/components/v13/ThemeStudio";
 import { FeatureDiagnostics } from "@/components/v13/FeatureDiagnostics";
-import { TigerIcon } from "@/components/ui/TigerIcon";
 
-type Tab = "home" | "profile" | "organize" | "groups" | "social" | "library" | "games" | "diagnostics";
+type Tab = "home" | "profile" | "themes" | "organize" | "groups" | "social" | "library" | "games" | "diagnostics";
 
 export function CommunityClient() {
   const router = useRouter();
@@ -36,17 +36,18 @@ export function CommunityClient() {
     })();
   }, [router]);
 
-  if (loading) return <main className="tiger-v12-page"><div className="v12-loading-card">Loading Community…</div></main>;
+  if (loading) return <main className="tiger-v12-page"><div className="v12-loading-card">Loading Community Center…</div></main>;
 
-  const tabs: [Tab, string][] = [["home","Overview"],["profile","Profile"],["organize","Organize"],["groups","Groups"],["social","Social"],["library","Files & links"],["games","Games & Tiger Bot"]];
+  const tabs: [Tab, string][] = [["home","Overview"],["profile","Profile"],["themes","Theme Studio"],["organize","Organize"],["groups","Groups"],["social","Social"],["library","Files & links"],["games","Games & Tiger Bot"]];
   if (isAdmin) tabs.push(["diagnostics","Diagnostics"]);
 
   return <main className="tiger-v12-page community-v12">
-    <header className="v12-page-header pro-page-heading"><div className="pro-heading-copy"><span className="pro-section-icon"><TigerIcon name="community" /></span><div><p className="v12-kicker">Community</p><h1>Community Center</h1><p>Profiles, groups, organization, social tools, files, and games in one place.</p></div></div><div className="v12-action-row"><button className="secondary-button" onClick={() => router.push("/chat")}>Back to chat</button>{isAdmin && <button className="primary-button" onClick={() => router.push("/moderation")}>Moderation</button>}</div></header>
+    <header className="v12-page-header"><div><p className="v12-kicker">Tiger Chat v13</p><h1>Community Center</h1><p>Profile, themes, organization, groups, social tools, files, games and supporter features.</p></div><div className="v12-action-row"><button className="secondary-button" onClick={() => router.push("/chat")}>Back to chat</button>{isAdmin && <button className="primary-button" onClick={() => router.push("/moderation")}>Moderation</button>}</div></header>
     <nav className="v12-scroll-tabs" aria-label="Community features">{tabs.map(([key,label]) => <button key={key} className={tab === key ? "active" : ""} onClick={() => setTab(key)}>{label}</button>)}</nav>
     <div className="v12-community-content">
       {tab === "home" && <OverviewPanel userId={userId} username={username} />}
       {tab === "profile" && <ProfileStylePanel userId={userId} username={username} />}
+      {tab === "themes" && <ThemeStudio userId={userId} />}
       {tab === "organize" && <OrganizerPanel userId={userId} />}
       {tab === "groups" && <GroupToolsPanel userId={userId} />}
       {tab === "social" && <SocialPanel userId={userId} />}

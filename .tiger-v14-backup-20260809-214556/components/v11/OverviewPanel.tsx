@@ -51,7 +51,7 @@ export function OverviewPanel({ userId, username }: { userId: string; username: 
       if (membershipError) throw membershipError;
       const conversationIds = (memberships ?? []).map((row: any) => String(row.conversation_id));
       const exportData: Record<string, unknown> = { exported_at: new Date().toISOString(), user_id: userId, conversation_members: memberships ?? [] };
-      const ownTables = ["profiles","saved_messages","user_achievements","text_stories","scheduled_messages","conversation_folders","close_friends","user_appearance_settings","legal_acceptances"] as const;
+      const ownTables = ["profiles","saved_messages","user_achievements","text_stories","scheduled_messages","conversation_folders","close_friends","user_themes","legal_acceptances"] as const;
       for (const table of ownTables) {
         let query: any = supabase.from(table).select("*");
         if (table === "profiles") query = query.eq("id", userId);
@@ -84,7 +84,7 @@ export function OverviewPanel({ userId, username }: { userId: string; username: 
 
   return <div className="tiger-v11-grid">
     <section className="tiger-card tiger-hero-card">
-      <div className="tiger-profile-glyph">{style?.profile_emoji || "🐯"}</div>
+      <div className={`tiger-profile-glyph tiger-frame-${style?.profile_frame || "none"}`}>{style?.profile_emoji || "🐯"}</div>
       <div>
         <p className="tiger-eyebrow">Your Tiger Chat</p>
         <h2>@{username}</h2>

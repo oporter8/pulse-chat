@@ -57,7 +57,7 @@ export default function AuthPage() {
   }
 
   return <main className="auth-shell"><section className="auth-card v13-auth-card">
-    <div className="brand-lockup"><div className="brand-mark"><span className="v13-auth-letter">T</span></div><div><h1>Tiger Chat</h1><p>Messaging, community, and school tools in one place.</p></div></div>
+    <div className="brand-lockup"><div className="brand-mark"><span className="v13-auth-letter">T</span></div><div><h1>Tiger Chat</h1><p>Messaging, community, and your own theme.</p></div></div>
     {mode !== "forgot" ? <div className="auth-tabs" role="tablist"><button type="button" className={mode === "login" ? "active" : ""} onClick={() => { setMode("login"); setMessage(""); }}>Log in</button><button type="button" className={mode === "signup" ? "active" : ""} onClick={() => { setMode("signup"); setMessage(""); }}>Sign up</button></div> : <div className="auth-recovery-heading"><button type="button" className="text-button" onClick={() => { setMode("login"); setMessage(""); }}>← Back to login</button><h2>Reset your password</h2><p>We’ll email you a secure recovery link.</p></div>}
     <form className="auth-form" onSubmit={submit}>
       {mode === "signup" && <><label>Display name<input value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="First Last" autoComplete="name" maxLength={40} /></label><label>Username<input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="username" autoComplete="username" maxLength={20} required /></label></>}

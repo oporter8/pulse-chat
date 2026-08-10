@@ -6,9 +6,8 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { getV11ProfileStyle } from "@/lib/v11-profile";
 import { isFocusActive, type BetaFeatureKey, type FocusSession } from "@/lib/v13-3";
-import { TigerIcon, type TigerIconName } from "@/components/ui/TigerIcon";
 
-type NavItem = { href: string; icon: TigerIconName; label: string };
+type NavItem = { href: string; icon: string; label: string };
 
 export function TigerNav() {
   const pathname = usePathname();
@@ -57,27 +56,27 @@ export function TigerNav() {
   if (!signedIn || ["/reset-password", "/terms", "/privacy", "/guidelines"].some((path) => pathname?.startsWith(path)) || pathname === "/") return null;
 
   const links: NavItem[] = [
-    { href: "/home", icon: "home", label: "Home" },
-    { href: "/chat", icon: "chat", label: "Chat" },
-    { href: "/community", icon: "community", label: "Community" },
-    { href: "/customize", icon: "appearance", label: "Appearance" },
-    { href: "/support", icon: "support", label: "Support" },
+    { href: "/home", icon: "⌂", label: "Home" },
+    { href: "/chat", icon: "◫", label: "Chat" },
+    { href: "/community", icon: "◇", label: "Community" },
+    { href: "/customize", icon: "✦", label: "Customize" },
+    { href: "/support", icon: "☆", label: "Support" },
   ];
-  if (labsEligible) links.push({ href: "/labs", icon: "labs", label: "Labs" });
-  if (isAdmin) links.push({ href: "/moderation", icon: "moderation", label: "Moderation" });
+  if (labsEligible) links.push({ href: "/labs", icon: "β", label: "Labs" });
+  if (isAdmin) links.push({ href: "/moderation", icon: "⌾", label: "Moderation" });
 
   const focusActive = isFocusActive(focus, now);
   const showFocusChip = focusActive && betaFeatures.includes("focus_nav_status");
   const focusText = (() => {
     if (!showFocusChip) return "";
-    if (!focus?.active_until) return "Focus";
+    if (!focus?.active_until) return "Focus on";
     const minutes = Math.max(1, Math.ceil((new Date(focus.active_until).getTime() - now) / 60000));
-    return minutes >= 60 ? `${Math.floor(minutes / 60)}h` : `${minutes}m`;
+    return minutes >= 60 ? `Focus ${Math.floor(minutes / 60)}h` : `Focus ${minutes}m`;
   })();
 
-  return <nav className="tiger-global-nav v12-global-nav v121-nav pro-nav" aria-label="Tiger Chat navigation">
-    <Link href="/home" className="v121-nav-brand" aria-label="Tiger Chat home"><span className="v121-brand-mark" aria-hidden="true">T</span><span className="v121-brand-copy"><strong>Tiger Chat</strong><small>Student messaging</small></span></Link>
-    <div className="v121-nav-links">{links.map((item) => <Link key={item.href} href={item.href} className={pathname?.startsWith(item.href) ? "active" : ""}><span className="v121-nav-icon" aria-hidden="true"><TigerIcon name={item.icon} /></span><span className="v121-nav-label">{item.label}</span></Link>)}</div>
-    <div className="v121-nav-footer">{showFocusChip && <Link href="/home" className="v133-nav-focus" title={focus?.label || "Focus Mode"}><TigerIcon name="focus" /><span>{focusText}</span></Link>}{supporter && <span className="pro-supporter-dot" title="Tiger Chat supporter" aria-label="Supporter"/>}<span className="v121-version">v14</span></div>
+  return <nav className="tiger-global-nav v12-global-nav v121-nav" aria-label="Tiger Chat navigation">
+    <Link href="/home" className="v121-nav-brand" aria-label="Tiger Chat home"><span className="v121-brand-mark" aria-hidden="true">T</span><span className="v121-brand-copy"><strong>Tiger</strong><small>Chat</small></span></Link>
+    <div className="v121-nav-links">{links.map((item) => <Link key={item.href} href={item.href} className={pathname?.startsWith(item.href) ? "active" : ""}><span className="v121-nav-icon" aria-hidden="true">{item.icon}</span><span className="v121-nav-label">{item.label}</span></Link>)}</div>
+    <div className="v121-nav-footer">{showFocusChip && <Link href="/home" className="v133-nav-focus" title={focus?.label || "Focus Mode"}>◉ <span>{focusText}</span></Link>}{supporter && <span className="v121-supporter-mark" title="Tiger Chat supporter">★</span>}<span className="v121-version">v13.3</span></div>
   </nav>;
 }

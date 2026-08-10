@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
-type PublicProfile = { id: string; username: string; display_name: string; bio: string; status_text: string; supporter: boolean; supporter_label: string; profile_emoji: string; favorite_song: string; social_link: string; extras_visibility: string; created_at: string };
+type PublicProfile = { id: string; username: string; display_name: string; bio: string; status_text: string; supporter: boolean; supporter_label: string; profile_emoji: string; favorite_song: string; social_link: string; accent_color: string; profile_frame: string; extras_visibility: string; created_at: string };
 
 export default function PublicProfilePage() {
   const params = useParams<{ username: string }>();
@@ -16,7 +16,7 @@ export default function PublicProfilePage() {
 
   useEffect(() => {
     void (async () => {
-      const { data } = await supabase.from("profiles").select("id,username,display_name,bio,status_text,supporter,supporter_label,profile_emoji,favorite_song,social_link,extras_visibility,created_at").eq("username", username).maybeSingle();
+      const { data } = await supabase.from("profiles").select("id,username,display_name,bio,status_text,supporter,supporter_label,profile_emoji,favorite_song,social_link,accent_color,profile_frame,extras_visibility,created_at").eq("username", username).maybeSingle();
       if (!data) { setLoading(false); return; }
       const row = data as PublicProfile; setProfile(row);
       const { data: allowed } = await supabase.rpc("can_view_profile_extras_v11", { target_user: row.id });
@@ -27,8 +27,8 @@ export default function PublicProfilePage() {
   if (loading) return <main className="tiger-v11-shell"><div className="tiger-card">Loading profile…</div></main>;
   if (!profile) return <main className="tiger-v11-shell"><div className="tiger-card"><h1>Profile not found</h1><Link href="/chat">Back to Tiger Chat</Link></div></main>;
 
-  return <main className="tiger-v11-shell"><section className="tiger-card tiger-public-profile">
-    <div className="tiger-profile-glyph">{profile.profile_emoji || "🐯"}</div>
+  return <main className="tiger-v11-shell"><section className="tiger-card tiger-public-profile" data-accent={profile.accent_color}>
+    <div className={`tiger-profile-glyph tiger-frame-${profile.profile_frame}`}>{profile.profile_emoji || "🐯"}</div>
     <p className="tiger-eyebrow">Tiger Chat profile</p><h1>{profile.display_name}</h1><strong>@{profile.username}</strong>
     {profile.supporter && <span className="tiger-supporter-badge">⭐ {profile.supporter_label}</span>}
     {profile.status_text && <p className="tiger-profile-status">{profile.status_text}</p>}

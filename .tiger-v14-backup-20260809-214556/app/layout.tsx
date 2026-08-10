@@ -6,7 +6,6 @@ import "./v13.css";
 import "./v13-1.css";
 import "./v13-2.css";
 import "./v13-3.css";
-import "./v14.css";
 import { PwaRegister } from "./pwa-register";
 import { TigerNav } from "@/components/v11/TigerNav";
 import { TigerThemeProvider } from "@/components/v11/TigerThemeProvider";
@@ -16,10 +15,10 @@ import { TermsGate } from "@/components/v13/TermsGate";
 
 export const metadata: Metadata = {
   title: "Tiger Chat",
-  description: "Private student messaging, community tools, Focus Mode, school scheduling, and moderation in a clean professional interface.",
+  description: "Customizable text and audio messaging with DMs, groups, community tools, moderation, themes, reactions, polls and events.",
   applicationName: "Tiger Chat",
   icons: { icon: "/icons/pulse-192.png", apple: "/icons/pulse-192.png" },
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "Tiger Chat" },
+  appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Tiger" },
   formatDetection: { telephone: false },
 };
 
@@ -28,13 +27,13 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f6f8f7" },
-    { media: "(prefers-color-scheme: dark)", color: "#0d1522" },
+    { media: "(prefers-color-scheme: dark)", color: "#090b10" },
+    { media: "(prefers-color-scheme: light)", color: "#f5f7fb" },
   ],
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en" data-tiger-appearance="bright"><body data-tiger-app-theme="true">
+  return <html lang="en"><body data-tiger-app-theme="true">
     {children}
     <TigerThemeProvider />
     <NoImageGuard />

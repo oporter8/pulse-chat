@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { BETA_FEATURES, type BetaFeatureKey } from "@/lib/v13-3";
-import { TigerIcon } from "@/components/ui/TigerIcon";
 
 export function BetaLabs() {
   const router = useRouter();
@@ -40,11 +39,11 @@ export function BetaLabs() {
   }
 
   if (loading) return <main className="tiger-v12-page"><div className="v12-loading-card">Loading Beta Labs…</div></main>;
-  if (!eligible) return <main className="tiger-v12-page"><header className="v12-page-header pro-page-heading"><div className="pro-heading-copy"><span className="pro-section-icon"><TigerIcon name="labs" /></span><div><p className="v12-kicker">Beta Labs</p><h1>Experimental features</h1><p>This area is available to Beta Testers and authorized staff.</p></div></div></header><section className="tiger-card"><h2>Beta access required</h2><p className="muted-copy">An Owner can grant the β Beta Tester community role from Moderation → Roles.</p><button className="primary-button" onClick={() => router.push("/home")}>Back Home</button></section></main>;
+  if (!eligible) return <main className="tiger-v12-page"><header className="v12-page-header"><div><p className="v12-kicker">Tiger Chat Beta</p><h1>Beta Labs</h1><p>This area is available to Beta Testers and authorized staff.</p></div></header><section className="tiger-card"><h2>Beta access required</h2><p className="muted-copy">An Owner can grant the β Beta Tester community role from Moderation → Roles.</p><button className="primary-button" onClick={() => router.push("/home")}>Back Home</button></section></main>;
 
   return <main className="tiger-v12-page v133-labs-page">
-    <header className="v12-page-header pro-page-heading"><div className="pro-heading-copy"><span className="pro-section-icon"><TigerIcon name="labs" /></span><div><p className="v12-kicker">Beta Labs</p><h1>Experimental features</h1><p>Try selected features before they become part of the standard experience.</p></div></div><button className="secondary-button" onClick={() => router.push("/home")}>Back Home</button></header>
-    <div className="v133-labs-grid">{BETA_FEATURES.map((feature) => <section className={`tiger-card v133-lab-card ${enabled.includes(feature.key) ? "enabled" : ""}`} key={feature.key}><div><span className="v133-lab-icon"><TigerIcon name="flask" /></span><span className={`v133-state-pill ${enabled.includes(feature.key) ? "active" : ""}`}>{enabled.includes(feature.key) ? "ON" : "OFF"}</span></div><h2>{feature.title}</h2><p>{feature.description}</p><button className={enabled.includes(feature.key) ? "secondary-button" : "primary-button"} onClick={() => void toggle(feature.key)}>{enabled.includes(feature.key) ? "Disable experiment" : "Enable experiment"}</button></section>)}</div>
+    <header className="v12-page-header"><div><p className="v12-kicker">β Beta Tester</p><h1>Beta Labs</h1><p>Working experiments you can opt into individually. Turn any of them off instantly if you prefer the standard experience.</p></div><button className="secondary-button" onClick={() => router.push("/home")}>Back Home</button></header>
+    <div className="v133-labs-grid">{BETA_FEATURES.map((feature) => <section className={`tiger-card v133-lab-card ${enabled.includes(feature.key) ? "enabled" : ""}`} key={feature.key}><div><span className="v133-lab-icon">β</span><span className={`v133-state-pill ${enabled.includes(feature.key) ? "active" : ""}`}>{enabled.includes(feature.key) ? "ON" : "OFF"}</span></div><h2>{feature.title}</h2><p>{feature.description}</p><button className={enabled.includes(feature.key) ? "secondary-button" : "primary-button"} onClick={() => void toggle(feature.key)}>{enabled.includes(feature.key) ? "Disable experiment" : "Enable experiment"}</button></section>)}</div>
     {message && <button className="notice-toast-v8" onClick={() => setMessage("")}>{message} ×</button>}
   </main>;
 }

@@ -253,6 +253,15 @@ export function SettingsModal({
                   <input value={email} disabled />
                 </label>
 
+                <label>
+                  Theme
+                  <select value={theme} onChange={(event) => onThemeChange(event.target.value as Theme)}>
+                    <option value="system">System</option>
+                    <option value="dark">Dark</option>
+                    <option value="light">Light</option>
+                  </select>
+                </label>
+
                 {message && <p className="inline-status" aria-live="polite">{message}</p>}
 
                 <div className="modal-actions spread-actions">

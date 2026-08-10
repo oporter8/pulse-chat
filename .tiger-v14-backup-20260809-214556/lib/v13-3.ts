@@ -54,9 +54,10 @@ export type SchoolScheduleException = {
   note: string;
 };
 
-export type BetaFeatureKey = "focus_nav_status" | "schedule_countdown";
+export type BetaFeatureKey = "compact_home" | "focus_nav_status" | "schedule_countdown";
 
 export const BETA_FEATURES: Array<{ key: BetaFeatureKey; title: string; description: string }> = [
+  { key: "compact_home", title: "Compact Home", description: "Fits more dashboard information on screen with denser cards." },
   { key: "focus_nav_status", title: "Focus status in navigation", description: "Shows an active Focus Mode indicator and countdown in the global navigation." },
   { key: "schedule_countdown", title: "Class countdown", description: "Shows time remaining until the next scheduled class on the School widget." },
 ];

@@ -34,6 +34,8 @@ export function GroupToolsPanel({ userId }: { userId: string }) {
   const [eventTitle, setEventTitle] = useState("");
   const [eventDetails, setEventDetails] = useState("");
   const [eventAt, setEventAt] = useState("");
+  const [theme, setTheme] = useState("default");
+  const [bubble, setBubble] = useState("inherit");
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -46,7 +48,7 @@ export function GroupToolsPanel({ userId }: { userId: string }) {
 
   async function loadGroup(id: string) {
     if (!id) return;
-    const [detailsResult, memberResult, pollResult, eventResult, inviteResult, pinResult, messageResult] = await Promise.all([
+    const [detailsResult, memberResult, pollResult, eventResult, inviteResult, pinResult, messageResult, prefResult] = await Promise.all([
       supabase.from("conversations").select("description,emoji_icon").eq("id", id).maybeSingle(),
       supabase.rpc("get_conversation_members", { target_conversation: id }),
       supabase.from("chat_polls").select("id,question,multi_select,closes_at,created_at,creator_id").eq("conversation_id", id).order("created_at", { ascending: false }).limit(20),
@@ -54,6 +56,7 @@ export function GroupToolsPanel({ userId }: { userId: string }) {
       supabase.from("group_invites").select("id,token,expires_at,max_uses,use_count,active").eq("conversation_id", id).order("created_at", { ascending: false }).limit(10),
       supabase.from("pinned_messages_v11").select("message_id,pinned_at").eq("conversation_id", id).order("pinned_at", { ascending: false }),
       supabase.from("messages").select("id,body,created_at,sender_id").eq("conversation_id", id).is("deleted_at", null).order("created_at", { ascending: false }).limit(30),
+      supabase.from("conversation_preferences").select("theme,bubble_style").eq("conversation_id", id).eq("user_id", userId).maybeSingle(),
     ]);
     setDescription(String(detailsResult.data?.description ?? ""));
     setEmojiIcon(String(detailsResult.data?.emoji_icon ?? "💬"));
@@ -76,6 +79,8 @@ export function GroupToolsPanel({ userId }: { userId: string }) {
     setInvites((inviteResult.data ?? []) as Invite[]);
     setPins((pinResult.data ?? []) as Pin[]);
     setRecentMessages((messageResult.data ?? []) as RecentMessage[]);
+    setTheme(String(prefResult.data?.theme || "default"));
+    setBubble(String(prefResult.data?.bubble_style || "inherit"));
   }
 
   useEffect(() => { void loadGroup(groupId); }, [groupId]);
@@ -87,6 +92,10 @@ export function GroupToolsPanel({ userId }: { userId: string }) {
   async function saveNickname() {
     const { error } = await supabase.rpc("set_my_group_nickname", { target_conversation: groupId, new_nickname: nickname });
     setMessage(error ? error.message : "Nickname saved.");
+  }
+  async function saveTheme() {
+    const { error } = await supabase.from("conversation_preferences").upsert({ user_id: userId, conversation_id: groupId, theme, bubble_style: bubble, updated_at: new Date().toISOString() }, { onConflict: "user_id,conversation_id" });
+    setMessage(error ? error.message : "Conversation appearance saved.");
   }
 
   async function createPoll() {
@@ -142,7 +151,7 @@ export function GroupToolsPanel({ userId }: { userId: string }) {
     </section>
     {groupId && <>
       <section className="tiger-card"><h3>Group identity</h3><label>Emoji icon<input value={emojiIcon} onChange={(e) => setEmojiIcon(e.target.value)} maxLength={16} /></label><label>Description<textarea value={description} onChange={(e) => setDescription(e.target.value)} maxLength={240} rows={4} /></label><button className="primary-button" onClick={() => void saveGroup()} disabled={!isAdmin}>Save group details</button>{!isAdmin && <small>Owner/admin only.</small>}</section>
-      <section className="tiger-card"><h3>Your group identity</h3><p className="muted-copy">Use a group nickname without changing Tiger Chat’s shared professional appearance.</p><label>Nickname<input value={nickname} onChange={(e) => setNickname(e.target.value)} maxLength={40} /></label><button className="secondary-button" onClick={() => void saveNickname()}>Save nickname</button></section>
+      <section className="tiger-card"><h3>Your group identity</h3><label>Nickname<input value={nickname} onChange={(e) => setNickname(e.target.value)} maxLength={40} /></label><button className="secondary-button" onClick={() => void saveNickname()}>Save nickname</button><label>Conversation theme<select value={theme} onChange={(e) => setTheme(e.target.value)}><option>default</option><option>tiger</option><option>night</option><option>school</option><option>mono</option><option>sunset</option></select></label><label>Bubble override<select value={bubble} onChange={(e) => setBubble(e.target.value)}><option>inherit</option><option>rounded</option><option>compact</option><option>square</option><option>soft</option></select></label><button className="secondary-button" onClick={() => void saveTheme()}>Save chat appearance</button></section>
 
       <section className="tiger-card tiger-span-2"><h3>Polls</h3><div className="tiger-inline-form"><input value={pollQuestion} onChange={(e) => setPollQuestion(e.target.value)} maxLength={180} placeholder="Poll question" /><label className="tiger-check"><input type="checkbox" checked={pollMulti} onChange={(e) => setPollMulti(e.target.checked)} /> Multiple choices</label></div><textarea rows={4} value={pollOptions} onChange={(e) => setPollOptions(e.target.value)} placeholder={'Option 1\nOption 2'} /><button className="primary-button" onClick={() => void createPoll()}>Create poll</button><div className="tiger-polls">{polls.map((poll) => <div className="tiger-poll" key={poll.id}><strong>{poll.question}</strong>{options.filter((o) => o.poll_id === poll.id).map((option) => { const count = votes.filter((v) => v.option_id === option.id).length; const mine = votes.some((v) => v.option_id === option.id && v.user_id === userId); return <button key={option.id} className={mine ? "selected" : ""} onClick={() => void vote(poll, option.id)}><span>{option.label}</span><strong>{count}</strong></button>; })}</div>)}</div></section>
 
