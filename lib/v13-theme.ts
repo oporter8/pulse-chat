@@ -1,4 +1,4 @@
-export const V13_THEME_VERSION = 2;
+export const V13_THEME_VERSION = 3;
 
 export type TigerThemeConfig = {
   version: number;
@@ -65,6 +65,12 @@ export type TigerThemeConfig = {
   mobileEdgeToEdge: boolean;
   mobileFontScale: number;
   mobileModalStyle: "sheet" | "full";
+  tabletLayout: "adaptive" | "split" | "focused";
+  tabletNavStyle: "rail" | "bottom";
+  tabletSidebarWidth: number;
+  tabletMessageWidth: number;
+  tabletComposerStyle: "floating" | "attached";
+  tabletFontScale: number;
 };
 
 export type TigerSavedTheme = {
@@ -151,6 +157,12 @@ const baseDark: TigerThemeConfig = {
   mobileEdgeToEdge: true,
   mobileFontScale: 100,
   mobileModalStyle: "sheet",
+  tabletLayout: "adaptive",
+  tabletNavStyle: "rail",
+  tabletSidebarWidth: 300,
+  tabletMessageWidth: 86,
+  tabletComposerStyle: "floating",
+  tabletFontScale: 100,
 };
 
 function merge(overrides: Partial<TigerThemeConfig>): TigerThemeConfig {
@@ -211,6 +223,9 @@ export function normalizeTigerThemeConfig(raw: unknown): TigerThemeConfig {
     mobileHeaderStyle: choice(input.mobileHeaderStyle, ["full","compact","minimal"] as const, fallback.mobileHeaderStyle), mobileMessageWidth: clampNumber(input.mobileMessageWidth, 72, 100, fallback.mobileMessageWidth), mobileChatPadding: clampNumber(input.mobileChatPadding, 6, 28, fallback.mobileChatPadding),
     mobileComposerStyle: choice(input.mobileComposerStyle, ["floating","attached","compact"] as const, fallback.mobileComposerStyle), mobileTapSize: choice(input.mobileTapSize, ["compact","comfortable","large"] as const, fallback.mobileTapSize),
     mobileEdgeToEdge: input.mobileEdgeToEdge !== false, mobileFontScale: clampNumber(input.mobileFontScale, 88, 120, fallback.mobileFontScale), mobileModalStyle: choice(input.mobileModalStyle, ["sheet","full"] as const, fallback.mobileModalStyle),
+    tabletLayout: choice(input.tabletLayout, ["adaptive","split","focused"] as const, fallback.tabletLayout), tabletNavStyle: choice(input.tabletNavStyle, ["rail","bottom"] as const, fallback.tabletNavStyle),
+    tabletSidebarWidth: clampNumber(input.tabletSidebarWidth, 250, 380, fallback.tabletSidebarWidth), tabletMessageWidth: clampNumber(input.tabletMessageWidth, 68, 96, fallback.tabletMessageWidth),
+    tabletComposerStyle: choice(input.tabletComposerStyle, ["floating","attached"] as const, fallback.tabletComposerStyle), tabletFontScale: clampNumber(input.tabletFontScale, 90, 115, fallback.tabletFontScale),
   };
 }
 
@@ -249,6 +264,7 @@ export function applyTigerThemeToDocument(config: TigerThemeConfig) {
   root.dataset.tigerV131MobileNav = c.mobileNavStyle; root.dataset.tigerV131MobileLabels = c.mobileNavLabels ? "on" : "off"; root.dataset.tigerV131MobileHideNav = c.mobileHideNavInChat ? "on" : "off";
   root.dataset.tigerV131MobileHeader = c.mobileHeaderStyle; root.dataset.tigerV131MobileComposer = c.mobileComposerStyle; root.dataset.tigerV131MobileTap = c.mobileTapSize;
   root.dataset.tigerV131MobileEdge = c.mobileEdgeToEdge ? "on" : "off"; root.dataset.tigerV131MobileModal = c.mobileModalStyle;
+  root.dataset.tigerV132TabletLayout = c.tabletLayout; root.dataset.tigerV132TabletNav = c.tabletNavStyle; root.dataset.tigerV132TabletComposer = c.tabletComposerStyle;
 
   const style = root.style;
   style.setProperty("--v121-orange", c.accent); style.setProperty("--v121-orange-2", c.accent2); style.setProperty("--v121-canvas", c.canvas); style.setProperty("--v121-surface", c.surface); style.setProperty("--v121-surface-2", c.surface2); style.setProperty("--v121-surface-3", c.surface3); style.setProperty("--v121-text", c.text); style.setProperty("--v121-muted", c.muted); style.setProperty("--v121-line", c.line);
@@ -259,4 +275,5 @@ export function applyTigerThemeToDocument(config: TigerThemeConfig) {
   style.setProperty("--tiger-v131-bg-intensity", `${c.backgroundIntensity}%`); style.setProperty("--tiger-v131-bg-intensity-2", `${Math.round(c.backgroundIntensity * 0.72)}%`); style.setProperty("--tiger-v131-surface-opacity", `${c.surfaceOpacity}%`); style.setProperty("--tiger-v131-blur", `${c.blurStrength}px`); style.setProperty("--tiger-v131-border-strength", `${c.borderStrength}%`); style.setProperty("--tiger-v131-shadow-strength", `${c.shadowStrength}%`); style.setProperty("--tiger-v131-shadow-soft", `${Math.round(c.shadowStrength * 0.7)}%`); style.setProperty("--tiger-v131-glow", `color-mix(in srgb, ${c.accent} ${c.accentGlow}%, transparent)`);
   style.setProperty("--tiger-v131-avatar-scale", `${c.avatarScale / 100}`); style.setProperty("--tiger-v131-avatar-medium", `${Math.round(42 * c.avatarScale / 100)}px`); style.setProperty("--tiger-v131-avatar-small", `${Math.round(32 * c.avatarScale / 100)}px`); style.setProperty("--tiger-v131-avatar-large", `${Math.round(68 * c.avatarScale / 100)}px`); style.setProperty("--tiger-v131-conversation-h", `${c.conversationHeight}px`);
   style.setProperty("--tiger-v131-mobile-nav-h", `${c.mobileNavHeight}px`); style.setProperty("--tiger-v131-mobile-message-w", `${c.mobileMessageWidth}%`); style.setProperty("--tiger-v131-mobile-pad", `${c.mobileChatPadding}px`); style.setProperty("--tiger-v131-mobile-font-size", `${16 * c.mobileFontScale / 100}px`); style.setProperty("--tiger-v131-mobile-msg-gap", `${Math.max(2, Math.round(c.messageSpacing * 0.78))}px`);
+  style.setProperty("--tiger-v132-tablet-sidebar", `${c.tabletSidebarWidth}px`); style.setProperty("--tiger-v132-tablet-message-w", `${c.tabletMessageWidth}%`); style.setProperty("--tiger-v132-tablet-font", `${16 * c.tabletFontScale / 100}px`);
 }

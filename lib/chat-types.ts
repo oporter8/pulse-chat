@@ -1,6 +1,8 @@
 export type Theme = "system" | "dark" | "light";
 export type DmPrivacy = "everyone" | "requests" | "mutual_groups" | "nobody";
 export type NotificationSound = "default" | "soft" | "pop" | "none";
+export type StaffRole = "owner" | "admin" | "moderator" | null;
+export type CommunityRole = "beta_tester" | "developer" | "helper" | "contributor" | "event_team" | "verified";
 
 export type Profile = {
   id: string;
@@ -12,6 +14,8 @@ export type Profile = {
   status_text: string;
   last_active_at: string | null;
   created_at: string;
+  staff_role?: StaffRole;
+  community_roles?: CommunityRole[];
 };
 
 export type MyProfile = Profile & {

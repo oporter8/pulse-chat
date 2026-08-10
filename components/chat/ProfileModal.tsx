@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import QRCode from "qrcode";
 import type { Profile } from "@/lib/chat-types";
 import { Avatar } from "@/components/chat/Avatar";
+import { RoleBadges } from "@/components/v13/RoleBadges";
 
 function relativeLastSeen(value: string | null) {
   if (!value) return "Last seen unavailable";
@@ -61,7 +62,7 @@ export function ProfileModal({ open, profile, online = false, onClose, onMessage
         <div className="profile-card-v8">
           <Avatar name={profile.display_name || profile.username} path={profile.avatar_path} size="large" online={online} />
           <div className="profile-card-copy-v8">
-            <div className="admin-name-line-v7"><h3>{profile.display_name}</h3>{profile.admin_tag && <span className="admin-badge-v7">{profile.admin_tag}</span>}</div>
+            <div className="admin-name-line-v7"><h3>{profile.display_name}</h3>{profile.admin_tag && <span className="admin-badge-v7">{profile.admin_tag}</span>}<RoleBadges staffRole={profile.staff_role} communityRoles={profile.community_roles ?? []} hideOwner={Boolean(profile.admin_tag)} /></div>
             <p>@{profile.username}</p>
             {profile.status_text && <div className="status-pill-v8">{profile.status_text}</div>}
             {profile.bio && <p className="profile-bio-v8">{profile.bio}</p>}

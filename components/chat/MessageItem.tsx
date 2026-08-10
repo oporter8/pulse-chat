@@ -5,6 +5,7 @@ import type { ConversationMember, Message } from "@/lib/chat-types";
 import { Avatar } from "@/components/chat/Avatar";
 import { formatBytes, formatDateTime, formatTime } from "@/lib/chat-utils";
 import { haptic } from "@/lib/sounds";
+import { RoleBadges } from "@/components/v13/RoleBadges";
 import { RichText } from "@/components/v11/RichText";
 import { getV11ProfileStyle, type V11ProfileStyle } from "@/lib/v11-profile";
 import { parseTigerMessage } from "@/lib/tiger-bot";
@@ -129,6 +130,7 @@ export function MessageItem({
           <button type="button" className={`message-sender-button-v8 ${senderStyle?.supporter ? "tiger-supporter-name" : ""}`} onClick={() => !mine && onProfile(message)}><strong>{mine ? "You" : senderName}</strong></button>
           {senderStyle?.supporter && <span className="tiger-supporter-badge">⭐ {senderStyle.supporter_label}</span>}
           {message.sender?.admin_tag && <span className="admin-badge-v7">{message.sender.admin_tag}</span>}
+          <RoleBadges staffRole={message.sender?.staff_role} communityRoles={message.sender?.community_roles ?? []} compact hideOwner={Boolean(message.sender?.admin_tag)} />
           <button type="button" className="timestamp-button-v8" onClick={() => setShowExactTime((v) => !v)} title="Show full timestamp"><time>{showExactTime ? formatDateTime(message.created_at) : formatTime(message.created_at)}</time></button>
           {message.edited_at && !message.deleted_at && <button type="button" className="edited-button-v8" onClick={() => onViewEdits(message)}>edited</button>}
         </div>

@@ -1,0 +1,71 @@
+/* Tiger Chat v13.2 — iPad workspace + staff/community roles */
+:root{
+  --tiger-v132-tablet-sidebar:300px;
+  --tiger-v132-tablet-message-w:86%;
+  --tiger-v132-tablet-font:16px;
+}
+
+/* Role badges */
+.tiger-role-badges{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap;vertical-align:middle}
+.tiger-role-badge{display:inline-flex;align-items:center;gap:4px;min-height:20px;padding:2px 7px;border-radius:999px;border:1px solid color-mix(in srgb,currentColor 24%,transparent);font-size:.62rem;font-weight:900;letter-spacing:.035em;line-height:1;background:color-mix(in srgb,currentColor 9%,transparent);white-space:nowrap}
+.tiger-role-badges.compact .tiger-role-badge{min-height:18px;padding:2px 5px;font-size:.56rem}
+.tiger-role-badge.staff.owner{color:#ff9f43}.tiger-role-badge.staff.admin{color:#8ea7ff}.tiger-role-badge.staff.moderator{color:#6ee7b7}
+.tiger-role-badge.community.beta{color:#c4a7ff}.tiger-role-badge.community.developer{color:#7dd3fc}.tiger-role-badge.community.helper{color:#86efac}.tiger-role-badge.community.contributor{color:#f9a8d4}.tiger-role-badge.community.event{color:#fcd34d}.tiger-role-badge.community.verified{color:#67e8f9}
+.tiger-role-badge b{font-size:.72rem}.message-meta-v5 .tiger-role-badges{max-width:44vw}.profile-card-copy-v8 .tiger-role-badges{margin-top:5px}
+
+/* Role manager */
+.v132-role-editor{display:grid;gap:12px;padding-top:12px;border-top:1px solid var(--v121-line)}
+.v132-role-editor label{display:grid;gap:6px;max-width:280px}.v132-community-role-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.v132-community-role-grid button{display:flex;align-items:center;gap:8px;justify-content:flex-start;padding:10px 12px;border:1px solid var(--v121-line);border-radius:12px;background:var(--v121-surface-2);color:var(--v121-muted);font-weight:800}
+.v132-community-role-grid button.active{color:var(--v121-text);border-color:color-mix(in srgb,var(--v121-orange) 55%,var(--v121-line));background:color-mix(in srgb,var(--v121-orange) 12%,var(--v121-surface-2))}
+.v132-community-role-grid button b{display:grid;place-items:center;width:24px;height:24px;border-radius:8px;background:var(--v121-surface-3)}
+.v132-user-card{min-width:0}
+
+/* Theme Studio tablet preview */
+.v132-tablet-card{border-color:color-mix(in srgb,var(--v121-orange) 25%,var(--v121-line))!important}
+.v132-ipad-preview{margin-top:14px;height:220px;border:1px solid var(--v121-line);border-radius:20px;overflow:hidden;background:var(--v121-canvas);display:grid;grid-template-columns:54px minmax(170px,.72fr) 1.6fr;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--v121-text) 3%,transparent)}
+.v132-ipad-preview .rail{padding:14px 8px;text-align:center;line-height:2.3;background:var(--v121-surface);color:var(--v121-orange);font-weight:900;border-right:1px solid var(--v121-line)}
+.v132-ipad-preview .inbox{padding:14px 10px;display:grid;align-content:start;gap:9px;border-right:1px solid var(--v121-line);background:var(--v121-surface)}
+.v132-ipad-preview .inbox i{height:29px;border-radius:9px;background:var(--v121-surface-2)}
+.v132-ipad-preview .chat{padding:14px;display:flex;flex-direction:column;gap:9px}.v132-ipad-preview .chat p{align-self:flex-start;margin:0;padding:8px 10px;border-radius:10px;background:var(--v121-surface-2);font-size:.68rem}.v132-ipad-preview .chat p.mine{align-self:flex-end;background:var(--v121-orange);color:#fff}.v132-ipad-preview .chat small{margin-top:auto;padding:8px;border:1px solid var(--v121-line);border-radius:11px;color:var(--v121-muted)}
+
+/* iPad/tablet workspace. This runs after v13.1's phone rules, so 768px portrait is no longer treated like a narrow phone. */
+@media (min-width:700px) and (max-width:1180px), (min-width:700px) and (max-width:1366px) and (pointer:coarse){
+  html{font-size:var(--tiger-v132-tablet-font)!important}
+  body{padding-bottom:0!important;padding-left:72px!important;min-height:100dvh}
+  .v121-nav{position:fixed!important;inset:10px auto 10px 10px!important;width:62px!important;height:auto!important;display:flex!important;flex-direction:column!important;padding:8px 6px!important;border-radius:20px!important;transform:none!important;opacity:1!important;pointer-events:auto!important}
+  .v121-nav-brand{width:44px!important;height:44px!important;min-height:44px!important;margin:0 auto 8px!important}.v121-brand-copy,.v121-nav-label,.v121-version{display:none!important}.v121-nav-links{display:flex!important;flex-direction:column!important;gap:6px!important;align-items:stretch!important}.v121-nav-links a{min-width:46px!important;width:46px!important;height:46px!important;padding:0!important;margin:0 auto!important;justify-content:center!important;border-radius:14px!important}.v121-nav-icon{font-size:1.05rem!important}.v121-nav-footer{margin-top:auto!important;display:grid!important;place-items:center!important}
+  html[data-tiger-v132-tablet-nav="bottom"] body{padding-left:0!important;padding-bottom:72px!important}
+  html[data-tiger-v132-tablet-nav="bottom"] .v121-nav{inset:auto 12px 10px 12px!important;width:auto!important;height:58px!important;display:grid!important;grid-template-columns:auto 1fr auto!important;align-items:center!important;padding:6px 10px!important}
+  html[data-tiger-v132-tablet-nav="bottom"] .v121-nav-links{flex-direction:row!important;justify-content:center!important}.v121-nav-links a{flex:none!important}
+
+  .chat-shell-v5{margin:10px!important;width:calc(100% - 20px)!important;max-width:none!important;height:calc(100dvh - 20px)!important;grid-template-columns:var(--tiger-v132-tablet-sidebar) minmax(0,1fr)!important;border-radius:24px!important;overflow:hidden!important}
+  .sidebar-v5{display:flex!important;position:relative!important;width:auto!important;min-width:0!important;transform:none!important;border-radius:0!important}.chat-panel-v5{display:flex!important;position:relative!important;width:auto!important;min-width:0!important;transform:none!important}
+  .conversation-list-v5{overscroll-behavior:contain}.sidebar-header-v5 .brand-lockup.compact{min-width:0}.sidebar-header-v5 .brand-lockup.compact>div:last-child{min-width:0}.sidebar-header-v5 .brand-lockup.compact span{overflow:hidden;text-overflow:ellipsis}
+  .messages-v5{padding:18px 18px 16px!important}.message-content-v5{max-width:var(--tiger-v132-tablet-message-w)!important}.composer-v5{padding:8px 14px 12px!important}.composer-row-v5{max-width:900px!important;grid-template-columns:auto auto minmax(0,1fr) auto!important}.chat-header-v5{min-height:62px!important;padding:8px 12px!important}.mobile-back-button{display:none!important}
+  html[data-tiger-v132-tablet-composer="attached"] .composer-v5{padding:0!important;border-top:1px solid var(--v121-line)!important;background:var(--v121-surface)!important}.composer-row-v5{border-radius:0!important;max-width:none!important;box-shadow:none!important;border:0!important}
+
+  /* Adaptive defaults to split in landscape and focused in narrow portrait. */
+  html[data-tiger-v132-tablet-layout="focused"] .chat-shell-v5:not(.mobile-chat-open) .chat-panel-v5{display:none!important}
+  html[data-tiger-v132-tablet-layout="focused"] .chat-shell-v5:not(.mobile-chat-open){grid-template-columns:1fr!important}
+  html[data-tiger-v132-tablet-layout="focused"] .chat-shell-v5.mobile-chat-open .sidebar-v5{display:none!important}
+  html[data-tiger-v132-tablet-layout="focused"] .chat-shell-v5.mobile-chat-open{grid-template-columns:1fr!important}
+  html[data-tiger-v132-tablet-layout="focused"] .chat-shell-v5.mobile-chat-open .mobile-back-button{display:grid!important}
+
+  .settings-backdrop{padding:22px!important;align-items:center!important}.settings-modal-v5{width:min(94vw,980px)!important;max-width:980px!important;height:min(88dvh,760px)!important;max-height:88dvh!important;border-radius:24px!important;border:1px solid var(--v121-line)!important}.settings-layout{height:calc(100% - 68px)!important;grid-template-columns:190px minmax(0,1fr)!important}.settings-tabs{position:relative!important;display:flex!important;flex-direction:column!important;overflow:auto!important}.settings-content{padding:20px!important}
+  .modal-backdrop:not(.settings-backdrop){padding:24px!important;align-items:center!important}.modal-backdrop:not(.settings-backdrop)>.modal-card{width:min(88vw,720px)!important;max-width:720px!important;max-height:86dvh!important;border-radius:24px!important}
+
+  .tiger-v12-page,.tiger-v11-shell{padding:22px!important;max-width:calc(100vw - 72px)!important;margin:0 auto!important}.v12-page-header,.tiger-v11-header{border-radius:22px!important}.v12-stat-strip{grid-template-columns:repeat(4,minmax(0,1fr))!important}.v12-segmented-tabs{overflow-x:auto;white-space:nowrap;scrollbar-width:none}.v12-segmented-tabs::-webkit-scrollbar{display:none}.v12-admin-table{grid-template-columns:repeat(2,minmax(0,1fr))!important}.v132-community-role-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .v13-theme-studio{grid-template-columns:220px minmax(0,1fr)!important}.v13-theme-sidebar{position:sticky!important;top:18px!important;height:max-content!important}.v131-section-nav{display:flex!important}.v131-range-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.v13-select-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.v13-toggle-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}.v131-theme-actions{bottom:10px!important}
+}
+
+@media (min-width:700px) and (max-width:850px) and (orientation:portrait){
+  html[data-tiger-v132-tablet-layout="adaptive"] .chat-shell-v5:not(.mobile-chat-open) .chat-panel-v5{display:none!important}
+  html[data-tiger-v132-tablet-layout="adaptive"] .chat-shell-v5:not(.mobile-chat-open){grid-template-columns:1fr!important}
+  html[data-tiger-v132-tablet-layout="adaptive"] .chat-shell-v5.mobile-chat-open .sidebar-v5{display:none!important}
+  html[data-tiger-v132-tablet-layout="adaptive"] .chat-shell-v5.mobile-chat-open{grid-template-columns:1fr!important}
+  html[data-tiger-v132-tablet-layout="adaptive"] .chat-shell-v5.mobile-chat-open .mobile-back-button{display:grid!important}
+  .v12-admin-table{grid-template-columns:1fr!important}
+}
+
+@media (max-width:720px){.v132-community-role-grid{grid-template-columns:1fr 1fr}.v132-ipad-preview{display:none}}

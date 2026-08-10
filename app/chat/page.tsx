@@ -285,7 +285,7 @@ export default function ChatPage() {
 
     const { data: profiles, error: profileError } = await supabase
       .from("profiles")
-      .select("id, username, display_name, bio, avatar_path, admin_tag, status_text, last_active_at, created_at")
+      .select("id, username, display_name, bio, avatar_path, admin_tag, status_text, last_active_at, created_at, staff_role, community_roles")
       .in("id", ids);
     if (profileError) throw profileError;
     setBlockedProfiles((profiles ?? []) as Profile[]);
@@ -308,7 +308,7 @@ export default function ChatPage() {
     if (senderIds.length === 0) { setMessageRequests([]); return; }
     const { data: profiles } = await supabase
       .from("profiles")
-      .select("id,username,display_name,bio,avatar_path,admin_tag,status_text,created_at")
+      .select("id,username,display_name,bio,avatar_path,admin_tag,status_text,created_at, staff_role, community_roles")
       .in("id", senderIds);
     const byId = new Map(((profiles ?? []) as Profile[]).map((profile) => [profile.id, { ...profile, last_active_at: null }]));
     setMessageRequests(rows.map((row) => ({ ...row, sender: byId.get(row.sender_id) })));
@@ -357,6 +357,8 @@ export default function ChatPage() {
         status_text: typeof row.status_text === "string" ? row.status_text : "",
         last_active_at: typeof row.last_active_at === "string" ? row.last_active_at : null,
         created_at: String(row.profile_created_at),
+        staff_role: row.profile_staff_role === "owner" || row.profile_staff_role === "admin" || row.profile_staff_role === "moderator" ? row.profile_staff_role : null,
+        community_roles: Array.isArray(row.profile_community_roles) ? row.profile_community_roles : [],
       },
     }));
     setMembers(normalized);
@@ -371,7 +373,7 @@ export default function ChatPage() {
     const [profileResult, attachmentResult, reactionResult, receiptResult, savedResult] = await Promise.all([
       supabase
         .from("profiles")
-        .select("id, username, display_name, bio, avatar_path, admin_tag, status_text, last_active_at, created_at")
+        .select("id, username, display_name, bio, avatar_path, admin_tag, status_text, last_active_at, created_at, staff_role, community_roles")
         .in("id", senderIds),
       supabase
         .from("message_attachments")
@@ -663,7 +665,7 @@ export default function ChatPage() {
 
         const { data: profile, error: profileError } = await supabase
           .from("profiles")
-          .select("id, username, display_name, bio, avatar_path, admin_tag, status_text, last_active_at, created_at, dm_privacy, show_read_receipts, show_online_status, notifications_enabled, notification_preview, notification_sound")
+          .select("id, username, display_name, bio, avatar_path, admin_tag, status_text, last_active_at, created_at, dm_privacy, show_read_receipts, show_online_status, notifications_enabled, notification_preview, notification_sound, staff_role, community_roles")
           .eq("id", currentUser.id)
           .single();
         if (profileError) throw profileError;
@@ -1053,7 +1055,7 @@ export default function ChatPage() {
       setSearching(true);
       const { data, error: searchError } = await supabase
         .from("profiles")
-        .select("id, username, display_name, bio, avatar_path, admin_tag, status_text, last_active_at, created_at")
+        .select("id, username, display_name, bio, avatar_path, admin_tag, status_text, last_active_at, created_at, staff_role, community_roles")
         .or(`username.ilike.%${clean}%,display_name.ilike.%${clean}%`)
         .neq("id", currentUser.id)
         .limit(10);
@@ -1464,7 +1466,7 @@ export default function ChatPage() {
         avatar_path: null,
       })
       .eq("id", user.id)
-      .select("id, username, display_name, bio, avatar_path, admin_tag, status_text, last_active_at, created_at, dm_privacy, show_read_receipts, show_online_status, notifications_enabled, notification_preview, notification_sound")
+      .select("id, username, display_name, bio, avatar_path, admin_tag, status_text, last_active_at, created_at, dm_privacy, show_read_receipts, show_online_status, notifications_enabled, notification_preview, notification_sound, staff_role, community_roles")
       .single();
     if (profileError) throw profileError;
 
@@ -1509,7 +1511,7 @@ export default function ChatPage() {
         notification_sound: values.notificationSound,
       })
       .eq("id", user.id)
-      .select("id, username, display_name, bio, avatar_path, admin_tag, status_text, last_active_at, created_at, dm_privacy, show_read_receipts, show_online_status, notifications_enabled, notification_preview, notification_sound")
+      .select("id, username, display_name, bio, avatar_path, admin_tag, status_text, last_active_at, created_at, dm_privacy, show_read_receipts, show_online_status, notifications_enabled, notification_preview, notification_sound, staff_role, community_roles")
       .single();
 
     if (preferenceError) throw preferenceError;
