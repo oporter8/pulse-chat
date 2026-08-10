@@ -199,7 +199,7 @@ export function SettingsModal({
         <div className="modal-heading">
           <div>
             <h2 id="settings-title">Settings</h2>
-            <p>Profile, privacy, notifications, appearance, and moderation.</p>
+            <p>Profile, privacy, notifications, security, and moderation.</p>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close settings">×</button>
         </div>
@@ -220,7 +220,7 @@ export function SettingsModal({
               <form className="stack-form" onSubmit={submitProfile}>
                 <div className="tiger-no-image-profile-note">
                   <strong>🐯 Text-only profile</strong>
-                  <span>Tiger Chat v11 uses text-only profiles. Profile photos and image banners are disabled.</span>
+                  <span>Tiger Chat uses clean text-only profiles. Profile photos and image banners are disabled.</span>
                 </div>
 
                 <div className="two-column-fields">

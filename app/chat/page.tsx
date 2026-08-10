@@ -1468,26 +1468,32 @@ export default function ChatPage() {
     }
   }
 
+  async function refreshMyProfile() {
+    if (!user) return null;
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, username, display_name, bio, avatar_path, admin_tag, status_text, last_active_at, created_at, dm_privacy, show_read_receipts, show_online_status, notifications_enabled, notification_preview, notification_sound, staff_role, community_roles")
+      .eq("id", user.id)
+      .single();
+    if (error) throw error;
+    setMe(data as MyProfile);
+    return data as MyProfile;
+  }
+
   async function saveProfile(values: { username: string; displayName: string; bio: string; statusText: string; avatarFile: File | null }) {
     if (!user || !me) return;
     if (values.avatarFile) throw new Error("Tiger Chat is text/audio-only. Profile images are disabled.");
 
-    const { data, error: profileError } = await supabase
-      .from("profiles")
-      .update({
-        username: values.username,
-        display_name: values.displayName,
-        bio: values.bio,
-        status_text: values.statusText,
-        avatar_path: null,
-      })
-      .eq("id", user.id)
-      .select("id, username, display_name, bio, avatar_path, admin_tag, status_text, last_active_at, created_at, dm_privacy, show_read_receipts, show_online_status, notifications_enabled, notification_preview, notification_sound, staff_role, community_roles")
-      .single();
-    if (profileError) throw profileError;
+    const { error: saveError } = await supabase.rpc("save_my_profile_v14_1", {
+      p_username: values.username,
+      p_display_name: values.displayName,
+      p_bio: values.bio,
+      p_status_text: values.statusText,
+    });
+    if (saveError) throw saveError;
 
     await supabase.auth.updateUser({ data: { username: values.username, display_name: values.displayName } });
-    setMe(data as MyProfile);
+    await refreshMyProfile();
     await loadConversations();
   }
 
@@ -1501,41 +1507,18 @@ export default function ChatPage() {
   }) {
     if (!user || !me) return;
 
-    if (me.show_read_receipts && !values.showReadReceipts) {
-      const [{ error: clearMembershipReceiptError }, { error: clearMessageReceiptError }] = await Promise.all([
-        supabase
-          .from("conversation_members")
-          .update({ last_read_at: null })
-          .eq("user_id", user.id),
-        supabase
-          .from("message_receipts")
-          .update({ read_at: null })
-          .eq("user_id", user.id),
-      ]);
-      if (clearMembershipReceiptError) throw clearMembershipReceiptError;
-      if (clearMessageReceiptError) throw clearMessageReceiptError;
-    }
-
-    const { data, error: preferenceError } = await supabase
-      .from("profiles")
-      .update({
-        dm_privacy: values.dmPrivacy,
-        show_read_receipts: values.showReadReceipts,
-        show_online_status: values.showOnlineStatus,
-        notifications_enabled: values.notificationsEnabled,
-        notification_preview: values.notificationPreview,
-        notification_sound: values.notificationSound,
-      })
-      .eq("id", user.id)
-      .select("id, username, display_name, bio, avatar_path, admin_tag, status_text, last_active_at, created_at, dm_privacy, show_read_receipts, show_online_status, notifications_enabled, notification_preview, notification_sound, staff_role, community_roles")
-      .single();
-
+    const { error: preferenceError } = await supabase.rpc("save_my_preferences_v14_1", {
+      p_dm_privacy: values.dmPrivacy,
+      p_show_read_receipts: values.showReadReceipts,
+      p_show_online_status: values.showOnlineStatus,
+      p_notifications_enabled: values.notificationsEnabled,
+      p_notification_preview: values.notificationPreview,
+      p_notification_sound: values.notificationSound,
+    });
     if (preferenceError) throw preferenceError;
-    setMe(data as MyProfile);
 
-    if (activeConversationId) {
-      await loadMembers(activeConversationId);
-    }
+    await refreshMyProfile();
+    if (activeConversationId) await loadMembers(activeConversationId);
   }
 
   async function enableCurrentDevicePush() {
