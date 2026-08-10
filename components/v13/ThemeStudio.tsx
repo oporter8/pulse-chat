@@ -1,150 +1,86 @@
 "use client";
 
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import {
-  applyTigerThemeToDocument,
-  DEFAULT_TIGER_THEME,
-  exportedTheme,
-  normalizeTigerThemeConfig,
-  parseImportedTheme,
-  TIGER_THEME_PRESETS,
-  validateCustomCss,
-  type TigerSavedTheme,
-  type TigerThemeConfig,
+  applyTigerThemeToDocument, DEFAULT_TIGER_THEME, exportedTheme, normalizeTigerThemeConfig, parseImportedTheme,
+  TIGER_THEME_PRESETS, validateCustomCss, type TigerSavedTheme, type TigerThemeConfig,
 } from "@/lib/v13-theme";
 
 const EMPTY_ID = "new";
-type ColorKey = "accent" | "accent2" | "canvas" | "surface" | "surface2" | "surface3" | "text" | "muted";
-const COLOR_FIELDS: Array<[ColorKey, string]> = [["accent","Accent"],["accent2","Second accent"],["canvas","Background"],["surface","Main surface"],["surface2","Raised surface"],["surface3","Hover surface"],["text","Text"],["muted","Muted text"]];
+type ColorKey = "accent"|"accent2"|"canvas"|"surface"|"surface2"|"surface3"|"text"|"muted"|"outgoingBubble"|"outgoingText"|"incomingBubble"|"incomingText";
+const COLOR_FIELDS: Array<[ColorKey,string]> = [
+  ["accent","Accent"],["accent2","Second accent"],["canvas","Background"],["surface","Main surface"],["surface2","Raised surface"],["surface3","Hover surface"],["text","Text"],["muted","Muted text"],
+  ["outgoingBubble","Your bubble"],["outgoingText","Your bubble text"],["incomingBubble","Incoming bubble"],["incomingText","Incoming text"],
+];
 
-export function ThemeStudio({ userId }: { userId: string }) {
-  const [themes, setThemes] = useState<TigerSavedTheme[]>([]);
-  const [selectedId, setSelectedId] = useState(EMPTY_ID);
-  const [name, setName] = useState("Tiger Custom");
-  const [preset, setPreset] = useState("tiger");
-  const [config, setConfig] = useState<TigerThemeConfig>(DEFAULT_TIGER_THEME);
-  const [customCss, setCustomCss] = useState("");
-  const [message, setMessage] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [advanced, setAdvanced] = useState(false);
+function Range({ label, value, min, max, step=1, suffix="", onChange }: { label:string;value:number;min:number;max:number;step?:number;suffix?:string;onChange:(value:number)=>void }) {
+  return <label className="v131-range"><span><strong>{label}</strong><b>{value}{suffix}</b></span><input type="range" min={min} max={max} step={step} value={value} onChange={(e)=>onChange(Number(e.target.value))}/></label>;
+}
+function Toggle({ label, checked, onChange, hint }: { label:string;checked:boolean;onChange:(value:boolean)=>void;hint?:string }) {
+  return <label className="v131-toggle"><input type="checkbox" checked={checked} onChange={(e)=>onChange(e.target.checked)}/><span><strong>{label}</strong>{hint&&<small>{hint}</small>}</span></label>;
+}
+function Select({ label, value, onChange, children }: { label:string;value:string;onChange:(value:string)=>void;children:ReactNode }) {
+  return <label><span className="v131-field-label">{label}</span><select value={value} onChange={(e)=>onChange(e.target.value)}>{children}</select></label>;
+}
 
-  async function load() {
-    const { data, error } = await supabase.from("user_themes").select("id,user_id,name,preset,config,custom_css,is_active,created_at,updated_at").eq("user_id", userId).order("updated_at", { ascending: false });
-    if (error) { setMessage(error.message); return; }
-    const rows = (data ?? []) as TigerSavedTheme[];
-    setThemes(rows);
-    const active = rows.find((row) => row.is_active) ?? rows[0];
-    if (active) selectTheme(active);
-  }
+export function ThemeStudio({ userId }: { userId:string }) {
+  const [themes,setThemes]=useState<TigerSavedTheme[]>([]); const [selectedId,setSelectedId]=useState(EMPTY_ID); const [name,setName]=useState("Tiger Custom"); const [preset,setPreset]=useState("tiger");
+  const [config,setConfig]=useState<TigerThemeConfig>(DEFAULT_TIGER_THEME); const [customCss,setCustomCss]=useState(""); const [message,setMessage]=useState(""); const [saving,setSaving]=useState(false); const [advanced,setAdvanced]=useState(false);
 
-  useEffect(() => { void load(); }, [userId]);
+  async function load(){ const {data,error}=await supabase.from("user_themes").select("id,user_id,name,preset,config,custom_css,is_active,created_at,updated_at").eq("user_id",userId).order("updated_at",{ascending:false}); if(error){setMessage(error.message);return;} const rows=(data??[]) as TigerSavedTheme[]; setThemes(rows); const active=rows.find(r=>r.is_active)??rows[0]; if(active)selectTheme(active); }
+  useEffect(()=>{void load();},[userId]);
+  useEffect(()=>{ applyTigerThemeToDocument(config); let style=document.getElementById("tiger-v13-preview-css") as HTMLStyleElement|null; if(!style){style=document.createElement("style");style.id="tiger-v13-preview-css";document.head.appendChild(style);} style.textContent=validateCustomCss(customCss)?"":customCss; return()=>{const current=document.getElementById("tiger-v13-preview-css");if(current)current.textContent="";}; },[config,customCss]);
 
-  useEffect(() => {
-    applyTigerThemeToDocument(config);
-    let style = document.getElementById("tiger-v13-preview-css") as HTMLStyleElement | null;
-    if (!style) { style = document.createElement("style"); style.id = "tiger-v13-preview-css"; document.head.appendChild(style); }
-    style.textContent = validateCustomCss(customCss) ? "" : customCss;
-    return () => { const current = document.getElementById("tiger-v13-preview-css"); if (current) current.textContent = ""; };
-  }, [config, customCss]);
+  function selectTheme(theme:TigerSavedTheme){setSelectedId(theme.id);setName(theme.name);setPreset(theme.preset);setConfig(normalizeTigerThemeConfig(theme.config));setCustomCss(theme.custom_css||"");setMessage("");}
+  function applyPreset(id:string){const found=TIGER_THEME_PRESETS.find(i=>i.id===id)??TIGER_THEME_PRESETS[0];setPreset(found.id);setConfig(found.config);setMessage(`Previewing ${found.label}. Save to keep it.`);}
+  function patch<K extends keyof TigerThemeConfig>(key:K,value:TigerThemeConfig[K]){setConfig(current=>normalizeTigerThemeConfig({...current,[key]:value}));}
 
-  function selectTheme(theme: TigerSavedTheme) {
-    setSelectedId(theme.id); setName(theme.name); setPreset(theme.preset); setConfig(normalizeTigerThemeConfig(theme.config)); setCustomCss(theme.custom_css || ""); setMessage("");
-  }
+  async function save(makeActive=true){setMessage("");const cssError=validateCustomCss(customCss);if(cssError){setMessage(cssError);return;}const cleanName=name.trim().slice(0,40);if(!cleanName){setMessage("Give the theme a name.");return;}setSaving(true);try{let id=selectedId;if(id===EMPTY_ID){const {data,error}=await supabase.from("user_themes").insert({user_id:userId,name:cleanName,preset,config:normalizeTigerThemeConfig(config),custom_css:customCss,is_active:false}).select("id").single();if(error)throw error;id=String(data.id);setSelectedId(id);}else{const {error}=await supabase.from("user_themes").update({name:cleanName,preset,config:normalizeTigerThemeConfig(config),custom_css:customCss,updated_at:new Date().toISOString()}).eq("id",id).eq("user_id",userId);if(error)throw error;}if(makeActive){const {error}=await supabase.rpc("activate_user_theme_v13",{target_theme:id});if(error)throw error;}await load();window.sessionStorage.removeItem("tiger-safe-theme");window.dispatchEvent(new Event("tiger-theme-updated"));setMessage(makeActive?"Theme saved and activated.":"Theme saved.");}catch(error){setMessage(error instanceof Error?error.message:"Could not save theme.");}finally{setSaving(false);}}
+  async function duplicate(){setSelectedId(EMPTY_ID);setName(`${name} copy`.slice(0,40));setMessage("Copy ready. Save it as a new theme.");}
+  async function remove(theme:TigerSavedTheme){if(!window.confirm(`Delete “${theme.name}”?`))return;const {error}=await supabase.from("user_themes").delete().eq("id",theme.id).eq("user_id",userId);if(error){setMessage(error.message);return;}setSelectedId(EMPTY_ID);setName("Tiger Custom");setPreset("tiger");setConfig(DEFAULT_TIGER_THEME);setCustomCss("");await load();window.dispatchEvent(new Event("tiger-theme-updated"));}
+  function exportCurrent(){const blob=new Blob([exportedTheme(name,preset,config,customCss)],{type:"application/json"});const href=URL.createObjectURL(blob);const a=document.createElement("a");a.href=href;a.download=`${name.trim().toLowerCase().replace(/[^a-z0-9]+/g,"-")||"tiger-theme"}.tiger-theme.json`;a.click();setTimeout(()=>URL.revokeObjectURL(href),1000);}
+  async function copyTheme(){await navigator.clipboard.writeText(exportedTheme(name,preset,config,customCss));setMessage("Theme JSON copied.");}
+  async function importFile(event:ChangeEvent<HTMLInputElement>){const file=event.target.files?.[0];event.target.value="";if(!file)return;try{const parsed=parseImportedTheme(await file.text());setSelectedId(EMPTY_ID);setName(parsed.name);setPreset(parsed.preset);setConfig(parsed.config);setCustomCss(parsed.custom_css);setMessage("Theme imported into preview. Save to keep it.");}catch(error){setMessage(error instanceof Error?error.message:"Could not import theme.");}}
+  async function resetSafe(){window.sessionStorage.removeItem("tiger-safe-theme");setSelectedId(EMPTY_ID);setName("Tiger Classic");setPreset("tiger");setConfig(DEFAULT_TIGER_THEME);setCustomCss("");applyTigerThemeToDocument(DEFAULT_TIGER_THEME);setMessage("Safe default loaded. Save to make it active.");}
+  const active=useMemo(()=>themes.find(t=>t.is_active),[themes]); const cssError=validateCustomCss(customCss);
 
-  function applyPreset(id: string) {
-    const found = TIGER_THEME_PRESETS.find((item) => item.id === id) ?? TIGER_THEME_PRESETS[0];
-    setPreset(found.id); setConfig(found.config); setMessage(`Previewing ${found.label}. Save to keep it.`);
-  }
-
-  function patch<K extends keyof TigerThemeConfig>(key: K, value: TigerThemeConfig[K]) { setConfig((current) => normalizeTigerThemeConfig({ ...current, [key]: value })); }
-
-  async function save(makeActive = true) {
-    setMessage("");
-    const cssError = validateCustomCss(customCss); if (cssError) { setMessage(cssError); return; }
-    const cleanName = name.trim().slice(0, 40); if (!cleanName) { setMessage("Give the theme a name."); return; }
-    setSaving(true);
-    try {
-      let id = selectedId;
-      if (id === EMPTY_ID) {
-        const { data, error } = await supabase.from("user_themes").insert({ user_id: userId, name: cleanName, preset, config: normalizeTigerThemeConfig(config), custom_css: customCss, is_active: false }).select("id").single();
-        if (error) throw error; id = String(data.id); setSelectedId(id);
-      } else {
-        const { error } = await supabase.from("user_themes").update({ name: cleanName, preset, config: normalizeTigerThemeConfig(config), custom_css: customCss, updated_at: new Date().toISOString() }).eq("id", id).eq("user_id", userId);
-        if (error) throw error;
-      }
-      if (makeActive) {
-        const { error } = await supabase.rpc("activate_user_theme_v13", { target_theme: id });
-        if (error) throw error;
-      }
-      await load(); window.sessionStorage.removeItem("tiger-safe-theme"); window.dispatchEvent(new Event("tiger-theme-updated")); setMessage(makeActive ? "Theme saved and activated." : "Theme saved.");
-    } catch (error) { setMessage(error instanceof Error ? error.message : "Could not save theme."); }
-    finally { setSaving(false); }
-  }
-
-  async function activate(id: string) {
-    const { error } = await supabase.rpc("activate_user_theme_v13", { target_theme: id });
-    if (error) setMessage(error.message); else { await load(); window.sessionStorage.removeItem("tiger-safe-theme"); window.dispatchEvent(new Event("tiger-theme-updated")); setMessage("Theme activated."); }
-  }
-
-  async function duplicate() {
-    setSelectedId(EMPTY_ID); setName(`${name} copy`.slice(0, 40)); setMessage("Copy ready. Save it as a new theme.");
-  }
-
-  async function remove(theme: TigerSavedTheme) {
-    if (!window.confirm(`Delete “${theme.name}”?`)) return;
-    const { error } = await supabase.from("user_themes").delete().eq("id", theme.id).eq("user_id", userId);
-    if (error) { setMessage(error.message); return; }
-    setSelectedId(EMPTY_ID); setName("Tiger Custom"); setPreset("tiger"); setConfig(DEFAULT_TIGER_THEME); setCustomCss(""); await load(); window.dispatchEvent(new Event("tiger-theme-updated"));
-  }
-
-  function exportCurrent() {
-    const blob = new Blob([exportedTheme(name, preset, config, customCss)], { type: "application/json" });
-    const href = URL.createObjectURL(blob); const anchor = document.createElement("a"); anchor.href = href; anchor.download = `${name.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-") || "tiger-theme"}.tiger-theme.json`; anchor.click(); setTimeout(() => URL.revokeObjectURL(href), 1000);
-  }
-
-  async function copyTheme() { await navigator.clipboard.writeText(exportedTheme(name, preset, config, customCss)); setMessage("Theme JSON copied."); }
-
-  async function importFile(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]; event.target.value = ""; if (!file) return;
-    try { const parsed = parseImportedTheme(await file.text()); setSelectedId(EMPTY_ID); setName(parsed.name); setPreset(parsed.preset); setConfig(parsed.config); setCustomCss(parsed.custom_css); setMessage("Theme imported into preview. Save to keep it."); }
-    catch (error) { setMessage(error instanceof Error ? error.message : "Could not import theme."); }
-  }
-
-  async function resetSafe() {
-    window.sessionStorage.removeItem("tiger-safe-theme"); setSelectedId(EMPTY_ID); setName("Tiger Classic"); setPreset("tiger"); setConfig(DEFAULT_TIGER_THEME); setCustomCss(""); setMessage("Safe default loaded. Save to make it your active theme."); applyTigerThemeToDocument(DEFAULT_TIGER_THEME);
-  }
-
-  const active = useMemo(() => themes.find((theme) => theme.is_active), [themes]);
-  const cssError = validateCustomCss(customCss);
-
-  return <div className="v13-theme-studio">
+  return <div className="v13-theme-studio v131-theme-studio">
     <section className="v13-theme-sidebar tiger-card">
-      <div><p className="v12-kicker">Appearance</p><h2>Theme Studio</h2><p className="muted-copy">BetterDiscord-style flexibility, without plugins, scripts, remote images, or unsafe CSS.</p></div>
-      <button className="primary-button" onClick={() => { setSelectedId(EMPTY_ID); setName("New theme"); setPreset("tiger"); setConfig(DEFAULT_TIGER_THEME); setCustomCss(""); }}>＋ New theme</button>
-      <div className="v13-saved-themes">{themes.map((theme) => <button key={theme.id} className={selectedId === theme.id ? "active" : ""} onClick={() => selectTheme(theme)}><span><strong>{theme.name}</strong><small>{theme.preset}</small></span>{theme.is_active && <b>Active</b>}</button>)}{themes.length === 0 && <p className="muted-copy">No saved themes yet. Pick a preset and save it.</p>}</div>
-      {active && <small>Current across devices: <strong>{active.name}</strong></small>}
-      <button className="secondary-button" onClick={() => void resetSafe()}>Reset preview to safe default</button>
-      <small>Recovery shortcut: <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd>. You can also add <code>?safeTheme=1</code> to any Tiger Chat URL.</small>
+      <div><p className="v12-kicker">Appearance</p><h2>Theme Studio+</h2><p className="muted-copy">Desktop and mobile are customizable separately, with safe recovery if a theme goes wrong.</p></div>
+      <button className="primary-button" onClick={()=>{setSelectedId(EMPTY_ID);setName("New theme");setPreset("tiger");setConfig(DEFAULT_TIGER_THEME);setCustomCss("");}}>＋ New theme</button>
+      <div className="v13-saved-themes">{themes.map(theme=><button key={theme.id} className={selectedId===theme.id?"active":""} onClick={()=>selectTheme(theme)}><span><strong>{theme.name}</strong><small>{theme.preset}</small></span>{theme.is_active&&<b>Active</b>}</button>)}{themes.length===0&&<p className="muted-copy">No saved themes yet.</p>}</div>
+      {active&&<small>Current across devices: <strong>{active.name}</strong></small>}
+      <button className="secondary-button" onClick={()=>void resetSafe()}>Reset preview to safe default</button>
+      <small>Recovery: <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd> or add <code>?safeTheme=1</code>.</small>
     </section>
 
-    <section className="v13-theme-workbench">
-      <div className="tiger-card v13-theme-preview">
-        <div><p className="v12-kicker">Live preview</p><h2>{name || "Untitled theme"}</h2><p>This page updates immediately. Nothing is permanent until you save.</p></div>
-        <div className="v13-preview-chat"><div className="v13-preview-message"><span>Friend</span><p>This is what an incoming message looks like.</p></div><div className="v13-preview-message mine"><span>You</span><p>And this is your message. 🐯</p></div><div className="v13-preview-composer">Message Tiger Chat… <b>Send</b></div></div>
+    <section className="v13-theme-workbench v131-theme-workbench">
+      <nav className="v131-section-nav" aria-label="Theme sections"><a href="#v131-presets">Presets</a><a href="#v131-colors">Colors</a><a href="#v131-messages">Messages</a><a href="#v131-layout">Layout</a><a href="#v131-effects">Effects</a><a href="#v131-mobile">Mobile</a><a href="#v131-css">CSS</a></nav>
+
+      <div className="tiger-card v13-theme-preview v131-preview-card">
+        <div><p className="v12-kicker">Live preview</p><h2>{name||"Untitled theme"}</h2><p>Desktop and phone previews update instantly.</p></div>
+        <div className="v131-preview-pair">
+          <div className="v13-preview-chat"><div className="v13-preview-message"><span>Friend</span><p>This is an incoming message.</p></div><div className="v13-preview-message mine"><span>You</span><p>Your theme can change almost every part of this. 🐯</p></div><div className="v13-preview-composer">Message Tiger Chat… <b>Send</b></div></div>
+          <div className="v131-phone-preview"><div className="v131-phone-head"><b>‹</b><span>Friend<small>Active now</small></span><b>•••</b></div><div className="v131-phone-chat"><p className="incoming">Mobile preview</p><p className="mine">Looks cleaner now.</p></div><div className="v131-phone-composer">Message… <b>↑</b></div><div className="v131-phone-nav"><span>◫</span><span>◇</span><span>✦</span><span>☆</span></div></div>
+        </div>
       </div>
 
-      <div className="tiger-card"><h3>Presets</h3><div className="v13-preset-grid">{TIGER_THEME_PRESETS.map((item) => <button key={item.id} className={preset === item.id ? "active" : ""} onClick={() => applyPreset(item.id)}><span className="v13-preset-swatch" style={{ background: `linear-gradient(135deg,${item.config.accent},${item.config.surface2})` }} /><strong>{item.label}</strong><small>{item.description}</small></button>)}</div></div>
+      <div id="v131-presets" className="tiger-card"><h3>Presets</h3><div className="v13-preset-grid">{TIGER_THEME_PRESETS.map(item=><button key={item.id} className={preset===item.id?"active":""} onClick={()=>applyPreset(item.id)}><span className="v13-preset-swatch" style={{background:`linear-gradient(135deg,${item.config.accent},${item.config.surface2})`}}/><strong>{item.label}</strong><small>{item.description}</small></button>)}</div></div>
 
-      <div className="tiger-card"><h3>Theme identity</h3><label>Theme name<input value={name} maxLength={40} onChange={(e) => setName(e.target.value)} /></label><div className="v13-color-grid">{COLOR_FIELDS.map(([key,label]) => <label key={key}>{label}<span className="v13-color-input"><input type="color" value={config[key]} onChange={(e) => patch(key, e.target.value)} /><code>{config[key]}</code></span></label>)}</div></div>
+      <div id="v131-colors" className="tiger-card"><h3>Colors & background</h3><label>Theme name<input value={name} maxLength={40} onChange={(e)=>setName(e.target.value)}/></label><div className="v13-color-grid">{COLOR_FIELDS.map(([key,label])=><label key={key}>{label}<span className="v13-color-input"><input type="color" value={config[key]} onChange={(e)=>patch(key,e.target.value)}/><code>{config[key]}</code></span></label>)}</div><div className="v13-select-grid v131-gap-top"><Select label="Background effect" value={config.backgroundStyle} onChange={(v)=>patch("backgroundStyle",v as TigerThemeConfig["backgroundStyle"])}><option value="solid">Solid</option><option value="spotlight">Spotlight</option><option value="gradient">Gradient</option><option value="mesh">Mesh</option></Select><Range label="Background intensity" value={config.backgroundIntensity} min={0} max={40} suffix="%" onChange={(v)=>patch("backgroundIntensity",v)}/></div></div>
 
-      <div className="tiger-card"><h3>Layout</h3><label>Navigation width <b>{config.navWidth}px</b><input type="range" min="72" max="150" value={config.navWidth} onChange={(e) => patch("navWidth", Number(e.target.value))} /></label><label>Conversation sidebar <b>{config.sidebarWidth}px</b><input type="range" min="240" max="460" value={config.sidebarWidth} onChange={(e) => patch("sidebarWidth", Number(e.target.value))} /></label><label>Message width <b>{config.messageMaxWidth}px</b><input type="range" min="420" max="980" value={config.messageMaxWidth} onChange={(e) => patch("messageMaxWidth", Number(e.target.value))} /></label><label>Corner radius <b>{config.radius}px</b><input type="range" min="0" max="36" value={config.radius} onChange={(e) => patch("radius", Number(e.target.value))} /></label><label>Message radius <b>{config.messageRadius}px</b><input type="range" min="0" max="30" value={config.messageRadius} onChange={(e) => patch("messageRadius", Number(e.target.value))} /></label><label>Text scale <b>{config.fontScale}%</b><input type="range" min="82" max="130" value={config.fontScale} onChange={(e) => patch("fontScale", Number(e.target.value))} /></label></div>
+      <div id="v131-messages" className="tiger-card"><h3>Messages</h3><div className="v13-select-grid"><Select label="Message style" value={config.messageStyle} onChange={(v)=>patch("messageStyle",v as TigerThemeConfig["messageStyle"])}><option value="bubbles">Bubbles</option><option value="flat">Flat</option><option value="minimal">Minimal</option></Select><Select label="Metadata" value={config.messageMeta} onChange={(v)=>patch("messageMeta",v as TigerThemeConfig["messageMeta"])}><option value="always">Always visible</option><option value="hover">Show on hover</option><option value="minimal">Minimal</option></Select></div><div className="v131-range-grid"><Range label="Max message width" value={config.messageMaxWidth} min={360} max={1040} suffix="px" onChange={(v)=>patch("messageMaxWidth",v)}/><Range label="Bubble radius" value={config.messageRadius} min={0} max={34} suffix="px" onChange={(v)=>patch("messageRadius",v)}/><Range label="Horizontal padding" value={config.messagePaddingX} min={6} max={24} suffix="px" onChange={(v)=>patch("messagePaddingX",v)}/><Range label="Vertical padding" value={config.messagePaddingY} min={4} max={20} suffix="px" onChange={(v)=>patch("messagePaddingY",v)}/><Range label="Message spacing" value={config.messageSpacing} min={2} max={24} suffix="px" onChange={(v)=>patch("messageSpacing",v)}/></div><div className="v13-toggle-grid"><Toggle label="Bubble tails" checked={config.bubbleTail} onChange={(v)=>patch("bubbleTail",v)}/><Toggle label="Show avatars" checked={config.showAvatars} onChange={(v)=>patch("showAvatars",v)}/></div></div>
 
-      <div className="tiger-card"><h3>Behavior & feel</h3><div className="v13-select-grid"><label>Density<select value={config.density} onChange={(e) => patch("density", e.target.value as TigerThemeConfig['density'])}><option value="compact">Compact</option><option value="comfortable">Comfortable</option><option value="spacious">Spacious</option></select></label><label>Font<select value={config.fontFamily} onChange={(e) => patch("fontFamily", e.target.value as TigerThemeConfig['fontFamily'])}><option value="system">System</option><option value="rounded">Rounded</option><option value="mono">Monospace</option><option value="serif">Serif</option></select></label><label>Messages<select value={config.messageStyle} onChange={(e) => patch("messageStyle", e.target.value as TigerThemeConfig['messageStyle'])}><option value="bubbles">Bubbles</option><option value="flat">Flat</option><option value="minimal">Minimal</option></select></label><label>Composer<select value={config.composerStyle} onChange={(e) => patch("composerStyle", e.target.value as TigerThemeConfig['composerStyle'])}><option value="floating">Floating</option><option value="attached">Attached</option><option value="minimal">Minimal</option></select></label></div><div className="v13-toggle-grid"><label><input type="checkbox" checked={config.glass} onChange={(e) => patch("glass", e.target.checked)} /> Glass blur</label><label><input type="checkbox" checked={config.shadows} onChange={(e) => patch("shadows", e.target.checked)} /> Shadows</label><label><input type="checkbox" checked={config.animations} onChange={(e) => patch("animations", e.target.checked)} /> Motion</label></div></div>
+      <div id="v131-layout" className="tiger-card"><h3>Desktop layout</h3><div className="v13-select-grid"><Select label="Navigation position" value={config.navPosition} onChange={(v)=>patch("navPosition",v as TigerThemeConfig["navPosition"])}><option value="left">Left</option><option value="right">Right</option></Select><Select label="Navigation style" value={config.navStyle} onChange={(v)=>patch("navStyle",v as TigerThemeConfig["navStyle"])}><option value="rail">Full rail</option><option value="compact">Compact</option><option value="hidden">Hidden</option></Select><Select label="Navigation labels" value={config.navLabels} onChange={(v)=>patch("navLabels",v as TigerThemeConfig["navLabels"])}><option value="always">Always</option><option value="hover">On hover</option><option value="never">Never</option></Select><Select label="Conversation sidebar" value={config.sidebarStyle} onChange={(v)=>patch("sidebarStyle",v as TigerThemeConfig["sidebarStyle"])}><option value="standard">Standard</option><option value="compact">Compact</option><option value="minimal">Minimal</option></Select><Select label="Button shape" value={config.buttonShape} onChange={(v)=>patch("buttonShape",v as TigerThemeConfig["buttonShape"])}><option value="rounded">Rounded</option><option value="pill">Pill</option><option value="square">Square</option></Select><Select label="Avatar shape" value={config.avatarShape} onChange={(v)=>patch("avatarShape",v as TigerThemeConfig["avatarShape"])}><option value="circle">Circle</option><option value="squircle">Squircle</option><option value="square">Square</option></Select></div><div className="v131-range-grid"><Range label="Navigation width" value={config.navWidth} min={68} max={170} suffix="px" onChange={(v)=>patch("navWidth",v)}/><Range label="Sidebar width" value={config.sidebarWidth} min={220} max={520} suffix="px" onChange={(v)=>patch("sidebarWidth",v)}/><Range label="Page max width" value={config.pageWidth} min={860} max={1900} suffix="px" onChange={(v)=>patch("pageWidth",v)}/><Range label="Conversation height" value={config.conversationHeight} min={48} max={88} suffix="px" onChange={(v)=>patch("conversationHeight",v)}/><Range label="App radius" value={config.radius} min={0} max={42} suffix="px" onChange={(v)=>patch("radius",v)}/><Range label="Avatar size" value={config.avatarScale} min={75} max={130} suffix="%" onChange={(v)=>patch("avatarScale",v)}/><Range label="Text scale" value={config.fontScale} min={78} max={140} suffix="%" onChange={(v)=>patch("fontScale",v)}/></div></div>
 
-      <div className="tiger-card"><button className="v13-disclosure" onClick={() => setAdvanced((value) => !value)}><span><strong>Advanced custom CSS</strong><small>Optional. Remote assets, imports and executable CSS are blocked.</small></span><b>{advanced ? "−" : "+"}</b></button>{advanced && <><textarea className="v13-css-editor" rows={14} spellCheck={false} value={customCss} onChange={(e) => setCustomCss(e.target.value)} placeholder={'.message-bubble-v5 {\n  border-width: 2px !important;\n}'} /><small className={cssError ? "v13-error" : "muted-copy"}>{cssError || `${customCss.length}/12000 characters · CSS only affects your own Tiger Chat UI.`}</small></>}</div>
+      <div id="v131-effects" className="tiger-card"><h3>Effects & feel</h3><div className="v13-select-grid"><Select label="Density" value={config.density} onChange={(v)=>patch("density",v as TigerThemeConfig["density"])}><option value="compact">Compact</option><option value="comfortable">Comfortable</option><option value="spacious">Spacious</option></Select><Select label="Font" value={config.fontFamily} onChange={(v)=>patch("fontFamily",v as TigerThemeConfig["fontFamily"])}><option value="system">System</option><option value="rounded">Rounded</option><option value="mono">Monospace</option><option value="serif">Serif</option></Select><Select label="Composer" value={config.composerStyle} onChange={(v)=>patch("composerStyle",v as TigerThemeConfig["composerStyle"])}><option value="floating">Floating</option><option value="attached">Attached</option><option value="minimal">Minimal</option></Select></div><div className="v131-range-grid"><Range label="Surface opacity" value={config.surfaceOpacity} min={55} max={100} suffix="%" onChange={(v)=>patch("surfaceOpacity",v)}/><Range label="Blur" value={config.blurStrength} min={0} max={40} suffix="px" onChange={(v)=>patch("blurStrength",v)}/><Range label="Border strength" value={config.borderStrength} min={0} max={24} suffix="%" onChange={(v)=>patch("borderStrength",v)}/><Range label="Shadow strength" value={config.shadowStrength} min={0} max={60} suffix="%" onChange={(v)=>patch("shadowStrength",v)}/><Range label="Accent glow" value={config.accentGlow} min={0} max={60} suffix="%" onChange={(v)=>patch("accentGlow",v)}/></div><div className="v13-toggle-grid"><Toggle label="Glass blur" checked={config.glass} onChange={(v)=>patch("glass",v)}/><Toggle label="Shadows" checked={config.shadows} onChange={(v)=>patch("shadows",v)}/><Toggle label="Motion" checked={config.animations} onChange={(v)=>patch("animations",v)}/><Toggle label="Scrollbars" checked={config.scrollbars} onChange={(v)=>patch("scrollbars",v)}/><Toggle label="Focus rings" checked={config.focusRings} onChange={(v)=>patch("focusRings",v)}/></div></div>
 
-      <div className="tiger-card v13-theme-actions"><div><button className="primary-button" disabled={saving || Boolean(cssError)} onClick={() => void save(true)}>{saving ? "Saving…" : "Save & activate"}</button><button className="secondary-button" onClick={() => void duplicate()}>Duplicate</button>{selectedId !== EMPTY_ID && themes.find((theme) => theme.id === selectedId) && <button className="danger-button secondary-danger" onClick={() => void remove(themes.find((theme) => theme.id === selectedId)!)}>Delete</button>}</div><div><button className="secondary-button" onClick={exportCurrent}>Export file</button><button className="secondary-button" onClick={() => void copyTheme()}>Copy JSON</button><label className="secondary-button v13-file-label">Import<input type="file" accept="application/json,.json,.tiger-theme.json" onChange={(event) => void importFile(event)} /></label></div>{message && <p className="tiger-notice">{message}</p>}</div>
+      <div id="v131-mobile" className="tiger-card v131-mobile-card"><div><p className="v12-kicker">Phone experience</p><h3>Mobile Experience</h3><p className="muted-copy">These controls apply only on screens 780px wide and smaller.</p></div><div className="v13-select-grid"><Select label="Bottom navigation" value={config.mobileNavStyle} onChange={(v)=>patch("mobileNavStyle",v as TigerThemeConfig["mobileNavStyle"])}><option value="floating">Floating dock</option><option value="attached">Attached bar</option><option value="minimal">Minimal icons</option></Select><Select label="Chat header" value={config.mobileHeaderStyle} onChange={(v)=>patch("mobileHeaderStyle",v as TigerThemeConfig["mobileHeaderStyle"])}><option value="full">Full</option><option value="compact">Compact</option><option value="minimal">Minimal</option></Select><Select label="Composer" value={config.mobileComposerStyle} onChange={(v)=>patch("mobileComposerStyle",v as TigerThemeConfig["mobileComposerStyle"])}><option value="floating">Floating</option><option value="attached">Attached</option><option value="compact">Compact</option></Select><Select label="Tap target size" value={config.mobileTapSize} onChange={(v)=>patch("mobileTapSize",v as TigerThemeConfig["mobileTapSize"])}><option value="compact">Compact</option><option value="comfortable">Comfortable</option><option value="large">Large</option></Select><Select label="Modal style" value={config.mobileModalStyle} onChange={(v)=>patch("mobileModalStyle",v as TigerThemeConfig["mobileModalStyle"])}><option value="sheet">Bottom sheets</option><option value="full">Full screen</option></Select></div><div className="v131-range-grid"><Range label="Bottom nav height" value={config.mobileNavHeight} min={50} max={78} suffix="px" onChange={(v)=>patch("mobileNavHeight",v)}/><Range label="Message width" value={config.mobileMessageWidth} min={72} max={100} suffix="%" onChange={(v)=>patch("mobileMessageWidth",v)}/><Range label="Chat side padding" value={config.mobileChatPadding} min={6} max={28} suffix="px" onChange={(v)=>patch("mobileChatPadding",v)}/><Range label="Mobile text scale" value={config.mobileFontScale} min={88} max={120} suffix="%" onChange={(v)=>patch("mobileFontScale",v)}/></div><div className="v13-toggle-grid"><Toggle label="Show nav labels" checked={config.mobileNavLabels} onChange={(v)=>patch("mobileNavLabels",v)}/><Toggle label="Hide nav inside chats" checked={config.mobileHideNavInChat} onChange={(v)=>patch("mobileHideNavInChat",v)} hint="Gives the conversation the full screen."/><Toggle label="Edge-to-edge pages" checked={config.mobileEdgeToEdge} onChange={(v)=>patch("mobileEdgeToEdge",v)}/></div></div>
+
+      <div id="v131-css" className="tiger-card"><button className="v13-disclosure" onClick={()=>setAdvanced(v=>!v)}><span><strong>Advanced custom CSS</strong><small>Remote assets, imports and executable CSS remain blocked.</small></span><b>{advanced?"−":"+"}</b></button>{advanced&&<><textarea className="v13-css-editor" rows={14} spellCheck={false} value={customCss} onChange={(e)=>setCustomCss(e.target.value)} placeholder={'.conversation-v5 {\n  letter-spacing: .01em !important;\n}'}/><small className={cssError?"v13-error":"muted-copy"}>{cssError||`${customCss.length}/12000 characters · only affects your own UI.`}</small></>}</div>
+
+      <div className="tiger-card v13-theme-actions v131-theme-actions"><div><button className="primary-button" disabled={saving||Boolean(cssError)} onClick={()=>void save(true)}>{saving?"Saving…":"Save & activate"}</button><button className="secondary-button" onClick={()=>void duplicate()}>Duplicate</button>{selectedId!==EMPTY_ID&&themes.find(t=>t.id===selectedId)&&<button className="danger-button secondary-danger" onClick={()=>void remove(themes.find(t=>t.id===selectedId)!)}>Delete</button>}</div><div><button className="secondary-button" onClick={exportCurrent}>Export</button><button className="secondary-button" onClick={()=>void copyTheme()}>Copy JSON</button><label className="secondary-button v13-file-label">Import<input type="file" accept="application/json,.json,.tiger-theme.json" onChange={(event)=>void importFile(event)}/></label></div>{message&&<p className="tiger-notice">{message}</p>}</div>
     </section>
   </div>;
 }

@@ -46,6 +46,6 @@ export function TigerNav() {
   return <nav className="tiger-global-nav v12-global-nav v121-nav" aria-label="Tiger Chat navigation">
     <Link href="/chat" className="v121-nav-brand" aria-label="Tiger Chat home"><span className="v121-brand-mark" aria-hidden="true">T</span><span className="v121-brand-copy"><strong>Tiger</strong><small>Chat</small></span></Link>
     <div className="v121-nav-links">{links.map((item) => <Link key={item.href} href={item.href} className={pathname?.startsWith(item.href) ? "active" : ""}><span className="v121-nav-icon" aria-hidden="true">{item.icon}</span><span className="v121-nav-label">{item.label}</span></Link>)}</div>
-    <div className="v121-nav-footer">{supporter && <span className="v121-supporter-mark" title="Tiger Chat supporter">★</span>}<span className="v121-version">v13</span></div>
+    <div className="v121-nav-footer">{supporter && <span className="v121-supporter-mark" title="Tiger Chat supporter">★</span>}<span className="v121-version">v13.1</span></div>
   </nav>;
 }
