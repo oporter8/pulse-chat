@@ -2,15 +2,17 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import "./v11.css";
 import "./v12.css";
+import "./v13.css";
 import { PwaRegister } from "./pwa-register";
 import { TigerNav } from "@/components/v11/TigerNav";
 import { TigerThemeProvider } from "@/components/v11/TigerThemeProvider";
 import { NoImageGuard } from "@/components/v11/NoImageGuard";
 import { ScheduledMessageRunner } from "@/components/v11/ScheduledMessageRunner";
+import { TermsGate } from "@/components/v13/TermsGate";
 
 export const metadata: Metadata = {
   title: "Tiger Chat",
-  description: "Text and audio messaging with DMs, groups, community tools, reactions, polls, events, and supporter perks.",
+  description: "Customizable text and audio messaging with DMs, groups, community tools, moderation, themes, reactions, polls and events.",
   applicationName: "Tiger Chat",
   icons: { icon: "/icons/pulse-192.png", apple: "/icons/pulse-192.png" },
   appleWebApp: { capable: true, statusBarStyle: "black-translucent", title: "Tiger" },
@@ -28,11 +30,12 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body>
+  return <html lang="en"><body data-tiger-app-theme="true">
     {children}
     <TigerThemeProvider />
     <NoImageGuard />
     <ScheduledMessageRunner />
+    <TermsGate />
     <TigerNav />
     <PwaRegister />
   </body></html>;

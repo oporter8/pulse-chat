@@ -118,7 +118,7 @@ export function SearchModal({
       <section className="modal-card search-modal-v6" role="dialog" aria-modal="true" aria-labelledby="search-title">
         <div className="modal-heading search-heading-v6">
           <div>
-            <h2 id="search-title">Search Pulse</h2>
+            <h2 id="search-title">Search Tiger Chat</h2>
             <p>Find a conversation or search the messages you can access.</p>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="Close search">×</button>

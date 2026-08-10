@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import type { DmPrivacy, MyProfile, NotificationSound, Profile, Report, Theme } from "@/lib/chat-types";
 import type { DevicePushState } from "@/lib/push-client";
 import { Avatar } from "@/components/chat/Avatar";
@@ -8,7 +8,6 @@ import { AdminPanel } from "@/components/chat/AdminPanel";
 import { formatDateTime } from "@/lib/chat-utils";
 import { SecurityPanel } from "@/components/chat/SecurityPanel";
 import { ReportHistory } from "@/components/chat/ReportHistory";
-import { cropSquareImage } from "@/lib/image-crop";
 import { supabase } from "@/lib/supabase";
 
 type PreferenceValues = {
@@ -73,10 +72,7 @@ export function SettingsModal({
   const [displayName, setDisplayName] = useState(profile.display_name);
   const [bio, setBio] = useState(profile.bio);
   const [statusText, setStatusText] = useState(profile.status_text);
-  const [cropZoom, setCropZoom] = useState(1);
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
   const [savingPreferences, setSavingPreferences] = useState(false);
@@ -96,10 +92,7 @@ export function SettingsModal({
     setDisplayName(profile.display_name);
     setBio(profile.bio);
     setStatusText(profile.status_text);
-    setCropZoom(1);
     setUsernameAvailable(null);
-    setAvatarFile(null);
-    setAvatarPreview(null);
     setMessage("");
     setTab(initialTab);
     setDmPrivacy(profile.dm_privacy);
@@ -128,33 +121,7 @@ export function SettingsModal({
     return () => window.clearTimeout(timer);
   }, [open, profile.username, username]);
 
-  useEffect(() => {
-    return () => {
-      if (avatarPreview) URL.revokeObjectURL(avatarPreview);
-    };
-  }, [avatarPreview]);
-
   if (!open) return null;
-
-  function chooseAvatar(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0] ?? null;
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      setMessage("Profile pictures must be an image.");
-      return;
-    }
-
-    if (file.size > 2 * 1024 * 1024) {
-      setMessage("Profile pictures must be 2 MB or smaller.");
-      return;
-    }
-
-    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
-    setAvatarFile(file);
-    setAvatarPreview(URL.createObjectURL(file));
-    setMessage("");
-  }
 
   async function submitProfile(event: FormEvent) {
     event.preventDefault();
@@ -175,17 +142,13 @@ export function SettingsModal({
 
     setSaving(true);
     try {
-      let finalAvatar = avatarFile;
-      if (finalAvatar) finalAvatar = await cropSquareImage(finalAvatar, cropZoom);
       await onSaveProfile({
         username: cleanUsername,
         displayName: cleanDisplayName,
         bio: bio.trim(),
         statusText: statusText.trim(),
-        avatarFile: finalAvatar,
+        avatarFile: null,
       });
-      setAvatarFile(null);
-      setAvatarPreview(null);
       setMessage("Saved.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not save settings.");
@@ -330,7 +293,7 @@ export function SettingsModal({
                     <input type="checkbox" checked={showReadReceipts} onChange={(event) => setShowReadReceipts(event.target.checked)} />
                   </label>
                   <label className="setting-toggle-row">
-                    <span><strong>Online status</strong><small>Show your live online indicator while Pulse is open.</small></span>
+                    <span><strong>Online status</strong><small>Show your live online indicator while Tiger Chat is open.</small></span>
                     <input type="checkbox" checked={showOnlineStatus} onChange={(event) => setShowOnlineStatus(event.target.checked)} />
                   </label>
                 </div>
@@ -371,7 +334,7 @@ export function SettingsModal({
               <div className="settings-section-v5 preference-stack-v6">
                 <div>
                   <h3>Message notifications</h3>
-                  <p className="muted-copy">Web Push can alert this device even when Pulse is not the active tab.</p>
+                  <p className="muted-copy">Web Push can alert this device even when Tiger Chat is not the active tab.</p>
                 </div>
 
                 <div className="setting-toggle-list">
@@ -386,7 +349,7 @@ export function SettingsModal({
                 </div>
 
                 <label className="setting-select-row">
-                  <span><strong>Foreground sound</strong><small>Used while Pulse is open. Background web-push sound is controlled by the device/browser.</small></span>
+                  <span><strong>Foreground sound</strong><small>Used while Tiger Chat is open. Background web-push sound is controlled by the device/browser.</small></span>
                   <select value={notificationSound} onChange={(event) => setNotificationSound(event.target.value as NotificationSound)}>
                     <option value="default">Default</option><option value="soft">Soft</option><option value="pop">Pop</option><option value="none">None</option>
                   </select>

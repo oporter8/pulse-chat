@@ -65,7 +65,7 @@ export async function POST(request: Request) {
 
     webpush.setVapidDetails(cfg.subject, cfg.publicKey, cfg.privateKey);
     const payload = JSON.stringify({
-      title: "New Pulse sign-in",
+      title: "New Tiger Chat sign-in",
       body: `Your account signed in on ${deviceName || latestEvent.detail || "a new device"}.`,
       url: "/chat?settings=security",
       tag: `pulse-login-${latestEvent.id}`,

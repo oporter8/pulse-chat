@@ -126,6 +126,9 @@ export default function ChatPage() {
   const [realtimeConnected, setRealtimeConnected] = useState(true);
   const [installPrompt, setInstallPrompt] = useState<any>(null);
   const [iosInstallHint, setIosInstallHint] = useState(false);
+  const [inboxFolders, setInboxFolders] = useState<Array<{ id: string; name: string; emoji: string }>>([]);
+  const [folderMemberships, setFolderMemberships] = useState<Record<string, string>>({});
+  const [folderFilter, setFolderFilter] = useState<string>("all");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -169,10 +172,33 @@ export default function ChatPage() {
   }, [activeConversationId, user?.id]);
 
   const visibleConversations = useMemo(() =>
-    conversations.filter((conversation) => showArchived ? Boolean(conversation.archived_at) : !conversation.archived_at),
-    [conversations, showArchived],
+    conversations
+      .filter((conversation) => showArchived ? Boolean(conversation.archived_at) : !conversation.archived_at)
+      .filter((conversation) => {
+        if (showArchived || folderFilter === "all") return true;
+        if (folderFilter === "favorites") return Boolean(conversation.favorite);
+        return folderMemberships[conversation.conversation_id] === folderFilter;
+      }),
+    [conversations, folderFilter, folderMemberships, showArchived],
   );
   const totalUnread = useMemo(() => conversations.reduce((sum, conversation) => sum + conversation.unread_count, 0), [conversations]);
+
+  useEffect(() => {
+    if (!user?.id) { setInboxFolders([]); setFolderMemberships({}); return; }
+    let cancelled = false;
+    async function loadInboxOrganization() {
+      const [folderResult, memberResult] = await Promise.all([
+        supabase.from("conversation_folders").select("id,name,emoji,position").eq("user_id", user!.id).order("position"),
+        supabase.from("conversation_folder_members").select("folder_id,conversation_id").eq("user_id", user!.id),
+      ]);
+      if (cancelled) return;
+      if (!folderResult.error) setInboxFolders((folderResult.data ?? []).map((row: any) => ({ id: String(row.id), name: String(row.name), emoji: String(row.emoji || "📁") })));
+      if (!memberResult.error) setFolderMemberships(Object.fromEntries((memberResult.data ?? []).map((row: any) => [String(row.conversation_id), String(row.folder_id)])));
+    }
+    const refresh = () => void loadInboxOrganization();
+    refresh(); window.addEventListener("focus", refresh);
+    return () => { cancelled = true; window.removeEventListener("focus", refresh); };
+  }, [user?.id]);
 
   const activeBlocked = Boolean(
     activeConversation?.kind === "dm" &&
@@ -206,17 +232,18 @@ export default function ChatPage() {
 
     const base = ((data ?? []) as Record<string, unknown>[]).map(normalizeConversation);
     const userId = authData.user?.id;
-    let prefs: Record<string, { pinned_at: string | null; archived_at: string | null; cleared_at: string | null; hidden_at: string | null }> = {};
+    let prefs: Record<string, { pinned_at: string | null; archived_at: string | null; cleared_at: string | null; hidden_at: string | null; favorite: boolean }> = {};
     if (userId) {
       const { data: rows } = await supabase
         .from("conversation_members")
-        .select("conversation_id,pinned_at,archived_at,cleared_at,hidden_at")
+        .select("conversation_id,pinned_at,archived_at,cleared_at,hidden_at,favorite")
         .eq("user_id", userId);
       prefs = Object.fromEntries((rows ?? []).map((row: any) => [String(row.conversation_id), {
         pinned_at: typeof row.pinned_at === "string" ? row.pinned_at : null,
         archived_at: typeof row.archived_at === "string" ? row.archived_at : null,
         cleared_at: typeof row.cleared_at === "string" ? row.cleared_at : null,
         hidden_at: typeof row.hidden_at === "string" ? row.hidden_at : null,
+        favorite: Boolean(row.favorite),
       }]));
     }
 
@@ -1270,7 +1297,7 @@ export default function ChatPage() {
 
     const clientId = crypto.randomUUID();
     const conversationId = activeConversationId;
-    const objectUrl = file && file.type.startsWith("image/") ? URL.createObjectURL(file) : null;
+    const objectUrl = file ? URL.createObjectURL(file) : null;
     const localAttachment: Attachment[] = file ? [{
       id: `local-attachment-${clientId}`,
       message_id: `local-${clientId}`,
@@ -1425,17 +1452,7 @@ export default function ChatPage() {
 
   async function saveProfile(values: { username: string; displayName: string; bio: string; statusText: string; avatarFile: File | null }) {
     if (!user || !me) return;
-    let avatarPath = me.avatar_path;
-
-    if (values.avatarFile) {
-      const extension = values.avatarFile.name.split(".").pop()?.toLowerCase() || "jpg";
-      const path = `${user.id}/profile-${Date.now()}.${extension}`;
-      const { error: uploadError } = await supabase.storage
-        .from("avatars")
-        .upload(path, values.avatarFile, { contentType: values.avatarFile.type, upsert: false });
-      if (uploadError) throw uploadError;
-      avatarPath = path;
-    }
+    if (values.avatarFile) throw new Error("Tiger Chat is text/audio-only. Profile images are disabled.");
 
     const { data, error: profileError } = await supabase
       .from("profiles")
@@ -1444,7 +1461,7 @@ export default function ChatPage() {
         display_name: values.displayName,
         bio: values.bio,
         status_text: values.statusText,
-        avatar_path: avatarPath,
+        avatar_path: null,
       })
       .eq("id", user.id)
       .select("id, username, display_name, bio, avatar_path, admin_tag, status_text, last_active_at, created_at, dm_privacy, show_read_receipts, show_online_status, notifications_enabled, notification_preview, notification_sound")
@@ -1589,22 +1606,11 @@ export default function ChatPage() {
 
   async function updateGroup(name: string, avatarFile: File | null) {
     if (!user || !activeConversation || activeConversation.kind !== "group") return;
-    let avatarPath = activeConversation.avatar_path;
-
-    if (avatarFile) {
-      const extension = avatarFile.name.split(".").pop()?.toLowerCase() || "jpg";
-      const path = `${user.id}/group-${activeConversation.conversation_id}-${Date.now()}.${extension}`;
-      const { error: uploadError } = await supabase.storage.from("avatars").upload(path, avatarFile, {
-        contentType: avatarFile.type,
-        upsert: false,
-      });
-      if (uploadError) throw uploadError;
-      avatarPath = path;
-    }
+    if (avatarFile) throw new Error("Tiger Chat is text/audio-only. Group images are disabled.");
 
     const { error: updateError } = await supabase
       .from("conversations")
-      .update({ name, avatar_path: avatarPath, updated_at: new Date().toISOString() })
+      .update({ name, avatar_path: null, updated_at: new Date().toISOString() })
       .eq("id", activeConversation.conversation_id);
     if (updateError) throw updateError;
     await loadConversations();
@@ -1848,7 +1854,7 @@ export default function ChatPage() {
       <aside className="sidebar-v5">
         <header className="sidebar-header-v5">
           <div className="brand-lockup compact">
-            <div className="brand-mark">P</div>
+            <div className="brand-mark">T</div>
             <div><strong>Tiger Chat</strong><span>@{me.username}</span></div>
           </div>
           <div className="header-actions">
@@ -1879,6 +1885,12 @@ export default function ChatPage() {
           <button type="button" className={showArchived ? "active" : ""} onClick={() => setShowArchived((value) => !value)}>{showArchived ? "Inbox" : "Archived"}</button>
           {(installPrompt || iosInstallHint) && <button type="button" onClick={() => void installPulse()}>Install app</button>}
         </div>
+
+        {!showArchived && <div className="v13-inbox-filters" aria-label="Inbox folders">
+          <button type="button" className={folderFilter === "all" ? "active" : ""} onClick={() => setFolderFilter("all")}>All</button>
+          <button type="button" className={folderFilter === "favorites" ? "active" : ""} onClick={() => setFolderFilter("favorites")}>★ Favorites</button>
+          {inboxFolders.map((folder) => <button type="button" key={folder.id} className={folderFilter === folder.id ? "active" : ""} onClick={() => setFolderFilter(folder.id)}>{folder.emoji} {folder.name}</button>)}
+        </div>}
 
         <div className="conversation-heading-v5"><span>{showArchived ? "Archived" : "Messages"}</span><small>{visibleConversations.length}</small></div>
         <nav className="conversation-list-v5" aria-label="Conversations">
@@ -2039,7 +2051,7 @@ export default function ChatPage() {
           </>
         ) : (
           <div className="welcome-panel-v5">
-            <div className="brand-mark large-mark">P</div>
+            <div className="brand-mark large-mark">T</div>
             <h2>Your messages</h2>
             <p>Search for someone or create a group to start chatting.</p>
             <button type="button" className="primary-button" onClick={() => setNewGroupOpen(true)}>Create a group</button>

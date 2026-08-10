@@ -9,3 +9,4 @@ npm-debug.log*
 .pulse-v*-backup-*/
 .pulse-v*-backup-*
 .pulse-v12.1-backup-*
+*.v11.1-backup

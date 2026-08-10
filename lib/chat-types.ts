@@ -37,6 +37,7 @@ export type Conversation = {
   archived_at?: string | null;
   cleared_at?: string | null;
   hidden_at?: string | null;
+  favorite?: boolean;
 };
 
 export type ConversationMember = {

@@ -46,21 +46,38 @@ export function OverviewPanel({ userId, username }: { userId: string; username: 
 
   async function exportAccount() {
     setNotice("Preparing your export…");
-    const tables = ["profiles", "conversation_members", "messages", "saved_messages", "user_achievements", "text_stories", "scheduled_messages", "conversation_folders"] as const;
-    const exportData: Record<string, unknown> = { exported_at: new Date().toISOString(), user_id: userId };
-    for (const table of tables) {
-      let query: any = supabase.from(table).select("*");
-      if (table === "profiles") query = query.eq("id", userId);
-      else if (["conversation_members", "saved_messages", "user_achievements", "text_stories", "scheduled_messages", "conversation_folders"].includes(table)) query = query.eq("user_id", userId);
-      else if (table === "messages") query = query.eq("sender_id", userId);
-      const { data } = await query.limit(5000);
-      exportData[table] = data ?? [];
-    }
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
-    const href = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = href; a.download = `tiger-chat-${username}-export.json`; a.click();
-    window.setTimeout(() => URL.revokeObjectURL(href), 1000);
-    setNotice("Account export downloaded.");
+    try {
+      const { data: memberships, error: membershipError } = await supabase.from("conversation_members").select("conversation_id,role,joined_at,last_read_at,muted_until,pinned_at,archived_at,cleared_at,hidden_at,favorite").eq("user_id", userId);
+      if (membershipError) throw membershipError;
+      const conversationIds = (memberships ?? []).map((row: any) => String(row.conversation_id));
+      const exportData: Record<string, unknown> = { exported_at: new Date().toISOString(), user_id: userId, conversation_members: memberships ?? [] };
+      const ownTables = ["profiles","saved_messages","user_achievements","text_stories","scheduled_messages","conversation_folders","close_friends","user_themes","legal_acceptances"] as const;
+      for (const table of ownTables) {
+        let query: any = supabase.from(table).select("*");
+        if (table === "profiles") query = query.eq("id", userId);
+        else query = query.eq("user_id", userId);
+        const { data, error } = await query.limit(5000);
+        exportData[table] = error ? { error: error.message } : data ?? [];
+      }
+      if (conversationIds.length) {
+        const [{ data: conversations }, { data: messages }] = await Promise.all([
+          supabase.from("conversations").select("*").in("id", conversationIds),
+          supabase.from("messages").select("*").in("conversation_id", conversationIds).order("created_at", { ascending: true }).limit(10000),
+        ]);
+        exportData.conversations = conversations ?? [];
+        exportData.messages = messages ?? [];
+        const messageIds = (messages ?? []).map((row: any) => String(row.id));
+        if (messageIds.length) {
+          const { data: reactions } = await supabase.from("message_reactions").select("*").in("message_id", messageIds).limit(10000);
+          exportData.message_reactions = reactions ?? [];
+        } else exportData.message_reactions = [];
+      }
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: "application/json" });
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a"); a.href = href; a.download = `tiger-chat-${username}-export.json`; a.click();
+      window.setTimeout(() => URL.revokeObjectURL(href), 1000);
+      setNotice("Account export downloaded.");
+    } catch (error) { setNotice(error instanceof Error ? error.message : "Could not export your data."); }
   }
 
   const percent = campaign && campaign.goal_cents > 0 ? Math.min(100, Math.round((campaign.raised_cents / campaign.goal_cents) * 100)) : 0;

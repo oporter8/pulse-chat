@@ -72,7 +72,7 @@ export function SecurityPanel({ email, onDeleted }: Props) {
     try {
       const { error } = await supabase.rpc("revoke_device", { p_device_id: id });
       if (error) throw error;
-      setMessage("That device has been removed from Pulse and will be signed out when it checks in again.");
+      setMessage("That device has been removed from Tiger Chat and will be signed out when it checks in again.");
       await load();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not remove that device.");
@@ -95,7 +95,7 @@ export function SecurityPanel({ email, onDeleted }: Props) {
 
   async function deleteAccount() {
     if (deleteText !== "DELETE") return;
-    if (!window.confirm("Permanently delete your Pulse account and app data? This cannot be undone.")) return;
+    if (!window.confirm("Permanently delete your Tiger Chat account and app data? This cannot be undone.")) return;
     setWorking(true); setMessage("");
     try {
       const { data } = await supabase.auth.getSession();
@@ -116,7 +116,7 @@ export function SecurityPanel({ email, onDeleted }: Props) {
   }
 
   return <div className="security-panel-v8 preference-stack-v6">
-    <div><h3>Signed-in devices</h3><p className="muted-copy">Pulse records each browser/device so you can remove old access. A removed device is blocked by Pulse on its next check-in.</p></div>
+    <div><h3>Signed-in devices</h3><p className="muted-copy">Tiger Chat records each browser/device so you can remove old access. A removed device is blocked by Tiger Chat on its next check-in.</p></div>
     <div className="settings-list">{devices.length === 0 ? <div className="empty-card">No device sessions found.</div> : devices.map((device) => <div className="settings-list-row" key={device.id}>
       <span className="device-icon-v8">▣</span>
       <span className="grow-copy"><strong>{device.device_name}{device.device_key === currentKey ? " · This device" : ""}</strong><small>Last active {formatDateTime(device.last_seen_at)}{device.revoked_at ? " · Removed" : ""}</small></span>
@@ -131,7 +131,7 @@ export function SecurityPanel({ email, onDeleted }: Props) {
 
     <div><h3>Login & security activity</h3><div className="history-list-v8">{events.length === 0 ? <div className="empty-card">No recent security events.</div> : events.map((item) => <article key={item.id}><strong>{item.event_type.replaceAll("_", " ")}</strong><small>{formatDateTime(item.created_at)}</small><p>{item.detail}</p></article>)}</div></div>
 
-    <div className="danger-zone-v8"><h3>Delete account</h3><p>Permanently removes your Pulse account and associated app data. Type <strong>DELETE</strong> to enable the button.</p><input value={deleteText} onChange={(event) => setDeleteText(event.target.value)} placeholder="DELETE"/><button type="button" className="danger-button" disabled={deleteText !== "DELETE" || working} onClick={() => void deleteAccount()}>Delete my account</button></div>
+    <div className="danger-zone-v8"><h3>Delete account</h3><p>Permanently removes your Tiger Chat account and associated app data. Type <strong>DELETE</strong> to enable the button.</p><input value={deleteText} onChange={(event) => setDeleteText(event.target.value)} placeholder="DELETE"/><button type="button" className="danger-button" disabled={deleteText !== "DELETE" || working} onClick={() => void deleteAccount()}>Delete my account</button></div>
     {message && <p className="inline-status" aria-live="polite">{message}</p>}
   </div>;
 }

@@ -50,7 +50,7 @@ export function ProfileModal({ open, profile, online = false, onClose, onMessage
   }
 
   async function share() {
-    if (navigator.share) await navigator.share({ title: currentProfile.display_name, text: `Message @${currentProfile.username} on Pulse`, url: link });
+    if (navigator.share) await navigator.share({ title: currentProfile.display_name, text: `Message @${currentProfile.username} on Tiger Chat`, url: link });
     else await copyLink();
   }
 
