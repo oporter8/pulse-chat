@@ -20,9 +20,9 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
 
   function chatDestination() {
-    if (typeof window === "undefined") return "/chat";
+    if (typeof window === "undefined") return "/home";
     const requestedUser = new URLSearchParams(window.location.search).get("user")?.trim();
-    return requestedUser ? `/chat?user=${encodeURIComponent(requestedUser)}` : "/chat";
+    return requestedUser ? `/chat?user=${encodeURIComponent(requestedUser)}` : "/home";
   }
 
   useEffect(() => { supabase.auth.getSession().then(({ data }) => { if (data.session) router.replace(chatDestination()); }); }, [router]);

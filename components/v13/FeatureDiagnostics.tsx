@@ -19,6 +19,7 @@ export function FeatureDiagnostics() {
     const probes: Array<[string, string]> = [
       ["Theme storage", "user_themes"], ["Terms acceptance", "legal_acceptances"], ["Polls", "chat_polls"], ["Events", "group_events"],
       ["Scheduled messages", "scheduled_messages"], ["Text stories", "text_stories"], ["Support Center", "support_campaigns"], ["Folders", "conversation_folders"],
+      ["Home dashboard", "dashboard_preferences"], ["Focus Mode", "focus_sessions"], ["School schedule", "school_schedule_settings"], ["Beta Labs", "user_beta_preferences"],
     ];
     for (const [name, table] of probes) {
       const { error } = await supabase.from(table).select("*").limit(1);

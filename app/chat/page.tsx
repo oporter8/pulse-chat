@@ -50,6 +50,7 @@ import { disableDevicePush, enableDevicePush, getDevicePushState, type DevicePus
 import { forgetDeviceKey, getDeviceKey, getDeviceName } from "@/lib/device";
 import { haptic, playNotificationSound } from "@/lib/sounds";
 import { VoiceRecorder } from "@/components/v11/VoiceRecorder";
+import { focusAllowsConversation, isFocusActive, type FocusSession } from "@/lib/v13-3";
 
 const PAGE_SIZE = 50;
 const MAX_ATTACHMENT_BYTES = 6 * 1024 * 1024;
@@ -129,6 +130,8 @@ export default function ChatPage() {
   const [inboxFolders, setInboxFolders] = useState<Array<{ id: string; name: string; emoji: string }>>([]);
   const [folderMemberships, setFolderMemberships] = useState<Record<string, string>>({});
   const [folderFilter, setFolderFilter] = useState<string>("all");
+  const [focusSession, setFocusSession] = useState<FocusSession | null>(null);
+  const [focusClock, setFocusClock] = useState(Date.now());
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -140,6 +143,8 @@ export default function ChatPage() {
   const activeChannelReadyRef = useRef(false);
   const pendingJumpRef = useRef<MessageSearchResult | null>(null);
   const failedQueueRef = useRef(new Map<string, { conversationId: string; body: string; file: File | null; replyToId: string | null; objectUrl: string | null }>());
+  const focusSessionRef = useRef<FocusSession | null>(null);
+  const favoriteConversationRef = useRef<Map<string, boolean>>(new Map());
 
   const activeConversation = useMemo(
     () => conversations.find((conversation) => conversation.conversation_id === activeConversationId) ?? null,
@@ -171,6 +176,7 @@ export default function ChatPage() {
     return () => { cancelled = true; };
   }, [activeConversationId, user?.id]);
 
+  const focusActive = isFocusActive(focusSession, focusClock);
   const visibleConversations = useMemo(() =>
     conversations
       .filter((conversation) => showArchived ? Boolean(conversation.archived_at) : !conversation.archived_at)
@@ -178,10 +184,41 @@ export default function ChatPage() {
         if (showArchived || folderFilter === "all") return true;
         if (folderFilter === "favorites") return Boolean(conversation.favorite);
         return folderMemberships[conversation.conversation_id] === folderFilter;
+      })
+      .filter((conversation) => {
+        if (!focusActive || !focusSession?.hide_non_priority || showArchived) return true;
+        return focusAllowsConversation(focusSession, conversation, focusClock);
       }),
-    [conversations, folderFilter, folderMemberships, showArchived],
+    [conversations, folderFilter, folderMemberships, focusActive, focusClock, focusSession, showArchived],
   );
   const totalUnread = useMemo(() => conversations.reduce((sum, conversation) => sum + conversation.unread_count, 0), [conversations]);
+
+  useEffect(() => {
+    focusSessionRef.current = focusSession;
+  }, [focusSession]);
+
+  useEffect(() => {
+    favoriteConversationRef.current = new Map(conversations.map((conversation) => [conversation.conversation_id, Boolean(conversation.favorite)]));
+  }, [conversations]);
+
+  useEffect(() => {
+    if (!user?.id) { setFocusSession(null); return; }
+    let cancelled = false;
+    async function loadFocus() {
+      const { data, error } = await supabase
+        .from("focus_sessions")
+        .select("user_id,enabled,active_until,mode,allowed_conversation_ids,hide_non_priority,mute_notifications,label,updated_at")
+        .eq("user_id", user!.id)
+        .maybeSingle();
+      if (!cancelled && !error) setFocusSession((data as FocusSession | null) ?? null);
+    }
+    const refresh = () => void loadFocus();
+    refresh();
+    const ticker = window.setInterval(() => setFocusClock(Date.now()), 30_000);
+    window.addEventListener("tiger-focus-updated", refresh);
+    window.addEventListener("focus", refresh);
+    return () => { cancelled = true; window.clearInterval(ticker); window.removeEventListener("tiger-focus-updated", refresh); window.removeEventListener("focus", refresh); };
+  }, [user?.id]);
 
   useEffect(() => {
     if (!user?.id) { setInboxFolders([]); setFolderMemberships({}); return; }
@@ -879,8 +916,20 @@ export default function ChatPage() {
               void supabase.from("conversation_members").select("muted_until").eq("conversation_id", conversationId).eq("user_id", currentUser.id).maybeSingle().then(({ data: membership }) => {
                 const mutedUntil = typeof membership?.muted_until === "string" ? new Date(membership.muted_until).getTime() : 0;
                 if (!mutedUntil || mutedUntil <= Date.now()) {
-                  playNotificationSound(currentMe.notification_sound);
-                  haptic([8, 30, 8]);
+                  const focus = focusSessionRef.current;
+                  const focusOn = isFocusActive(focus);
+                  const favorite = favoriteConversationRef.current.get(conversationId) ?? false;
+                  const focusBlocksNotification = Boolean(focusOn && focus?.mute_notifications && (
+                    focus.mode === "mute_only"
+                      ? true
+                      : focus.mode === "favorites"
+                        ? !favorite
+                        : !focus.allowed_conversation_ids.includes(conversationId)
+                  ));
+                  if (!focusBlocksNotification) {
+                    playNotificationSound(currentMe.notification_sound);
+                    haptic([8, 30, 8]);
+                  }
                 }
               });
             }
@@ -1827,6 +1876,15 @@ export default function ChatPage() {
     }
   }
 
+  async function endFocusMode() {
+    if (!user || !focusSession) return;
+    const { error: focusError } = await supabase.from("focus_sessions").upsert({ ...focusSession, user_id: user.id, enabled: false, active_until: null, updated_at: new Date().toISOString() });
+    if (focusError) { setError(focusError.message); return; }
+    setFocusSession({ ...focusSession, enabled: false, active_until: null });
+    window.dispatchEvent(new CustomEvent("tiger-focus-updated"));
+    setNotice("Focus Mode ended.");
+  }
+
   async function signOut() {
     if (presenceChannelRef.current) await presenceChannelRef.current.untrack();
     if (user) {
@@ -1880,6 +1938,8 @@ export default function ChatPage() {
             </div>
           )}
         </div>
+
+        {focusActive && <div className="v133-focus-sidebar"><span><strong>◉ {focusSession?.label || "Focus"}</strong><small>{focusSession?.hide_non_priority ? `${visibleConversations.length} priority chats visible` : "Notifications filtered"}</small></span><button type="button" onClick={() => void endFocusMode()}>End</button></div>}
 
         <div className="sidebar-tools-v8">
           <button type="button" onClick={() => setRequestsOpen(true)}>Requests{messageRequests.length > 0 && <span>{messageRequests.length}</span>}</button>

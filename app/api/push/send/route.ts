@@ -4,7 +4,8 @@ import webpush from "web-push";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-type MemberRow = { user_id: string; muted_until: string | null };
+type MemberRow = { user_id: string; muted_until: string | null; favorite: boolean };
+type FocusRow = { user_id: string; enabled: boolean; active_until: string | null; mode: "favorites" | "selected" | "mute_only"; allowed_conversation_ids: string[]; mute_notifications: boolean };
 type RecipientProfile = { id: string; notifications_enabled: boolean; notification_preview: boolean; dnd_until: string | null };
 type SubscriptionRow = { endpoint: string; p256dh: string; auth: string; user_id: string };
 
@@ -51,12 +52,25 @@ export async function POST(request: Request) {
     ]);
     if (!conversation || !sender) return Response.json({ sent: 0, failed: 0 });
 
-    const { data: memberRows } = await admin.from("conversation_members").select("user_id,muted_until").eq("conversation_id", message.conversation_id).neq("user_id", message.sender_id);
+    const { data: memberRows } = await admin.from("conversation_members").select("user_id,muted_until,favorite").eq("conversation_id", message.conversation_id).neq("user_id", message.sender_id);
     const now = Date.now();
-    const unmutedIds = ((memberRows ?? []) as MemberRow[]).filter((member) => !member.muted_until || new Date(member.muted_until).getTime() <= now).map((member) => member.user_id);
+    const unmutedMembers = ((memberRows ?? []) as MemberRow[]).filter((member) => !member.muted_until || new Date(member.muted_until).getTime() <= now);
+    const unmutedIds = unmutedMembers.map((member) => member.user_id);
     if (!unmutedIds.length) return Response.json({ sent: 0, failed: 0 });
 
-    const { data: profileRows } = await admin.from("profiles").select("id,notifications_enabled,notification_preview,dnd_until").in("id", unmutedIds);
+    const { data: focusRows } = await admin.from("focus_sessions").select("user_id,enabled,active_until,mode,allowed_conversation_ids,mute_notifications").in("user_id", unmutedIds);
+    const focusByUser = new Map(((focusRows ?? []) as FocusRow[]).map((row) => [row.user_id, row]));
+    const eligibleByFocus = unmutedMembers.filter((member) => {
+      const focus = focusByUser.get(member.user_id);
+      if (!focus?.enabled || !focus.mute_notifications) return true;
+      if (focus.active_until && new Date(focus.active_until).getTime() <= now) return true;
+      if (focus.mode === "mute_only") return false;
+      if (focus.mode === "favorites") return Boolean(member.favorite);
+      return (focus.allowed_conversation_ids ?? []).includes(message.conversation_id);
+    }).map((member) => member.user_id);
+    if (!eligibleByFocus.length) return Response.json({ sent: 0, failed: 0, focusFiltered: true });
+
+    const { data: profileRows } = await admin.from("profiles").select("id,notifications_enabled,notification_preview,dnd_until").in("id", eligibleByFocus);
     const recipientProfiles = new Map(((profileRows ?? []) as RecipientProfile[])
       .filter((profile) => profile.notifications_enabled)
       .filter((profile) => !profile.dnd_until || new Date(profile.dnd_until).getTime() <= now)
